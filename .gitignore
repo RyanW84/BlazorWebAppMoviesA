@@ -1,0 +1,103 @@
+
+
+# VS Code AI Rules
+.github/instructions/codacy.instructions.md
+
+# .NET / C#
+bin/
+obj/
+*.user
+*.suo
+*.sln.iml
+*.csproj.user
+*.csproj.lock.json
+.dotnet/
+.vs/
+appsettings.*.json
+!appsettings.Development.json
+!appsettings.json
+
+# NuGet
+.nuget/
+*.nupkg
+*.snupkg
+*.lock.json
+
+# Blazor
+.angular/
+.dart_tool/
+.flutter-plugins
+.packages
+pubspec.lock
+
+# Visual Studio
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules (if using npm/yarn)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Package managers
+.m2/
+.gradle/
+
+# OS files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Log files
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Azure
+.azure/
+local.settings.json
+
+# Build artifacts
+dist/
+build/
+release/
+
+# Test coverage
+coverage/
+.coverage/
+*.trx
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+tmp/
+
+# IDE settings
+.editorconfig.local
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Dependencies
+packages/
+*/packages/
