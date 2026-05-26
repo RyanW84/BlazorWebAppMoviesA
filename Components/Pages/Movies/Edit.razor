@@ -1,0 +1,82 @@
+@page "/movies/{Id:int}/edit"
+@rendermode InteractiveServer
+@inject IMovieService MovieService
+@inject NavigationManager Nav
+
+<PageTitle>Edit Movie</PageTitle>
+
+<h1>Edit Movie</h1>
+
+@if (movie is null)
+{
+    <p>Movie not found.</p>
+}
+else
+{
+    <EditForm Model="movie" OnValidSubmit="Save">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Title</label>
+                <InputText class="form-control" @bind-Value="movie.Title" />
+                <ValidationMessage For="() => movie.Title" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(movie.PosterUrl))
+            {
+                <div class="col-12">
+                    <img src="@movie.PosterUrl" style="height:150px;border-radius:4px;" alt="Poster" />
+                </div>
+            }
+
+            <div class="col-md-4">
+                <label class="form-label">Release Year</label>
+                <InputNumber class="form-control" @bind-Value="movie.ReleaseYear" />
+                <ValidationMessage For="() => movie.ReleaseYear" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Genre</label>
+                <InputText class="form-control" @bind-Value="movie.Genre" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Rating (0–10)</label>
+                <InputNumber class="form-control" @bind-Value="movie.Rating" />
+                <ValidationMessage For="() => movie.Rating" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Director</label>
+                <InputText class="form-control" @bind-Value="movie.Director" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Synopsis</label>
+                <InputTextArea class="form-control" @bind-Value="movie.Synopsis" rows="4" />
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="/movies/@Id" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Movie? movie;
+
+    protected override async Task OnInitializedAsync() =>
+        movie = await MovieService.GetByIdAsync(Id);
+
+    private async Task Save()
+    {
+        if (movie is not null)
+        {
+            await MovieService.UpdateAsync(movie);
+            Nav.NavigateTo("/movies");
+        }
+    }
+}

@@ -1,0 +1,150 @@
+@page "/movies/create"
+@rendermode InteractiveServer
+@inject IMovieService MovieService
+@inject ITmdbService TmdbService
+@inject NavigationManager Nav
+
+<PageTitle>Add Movie</PageTitle>
+
+<h1>Add Movie</h1>
+
+<div class="card mb-4">
+    <div class="card-header">Search TMDB to auto-fill</div>
+    <div class="card-body">
+        <div class="d-flex gap-2">
+            <input class="form-control" @bind="tmdbQuery" @bind:event="oninput" @onkeydown="OnTmdbKeyDown" placeholder="Search for a movie..." />
+            <button class="btn btn-secondary" @onclick="SearchTmdb" disabled="@searching">Search</button>
+        </div>
+
+        @if (tmdbResults.Count > 0)
+        {
+            <div class="row row-cols-2 row-cols-md-4 g-3 mt-2">
+                @foreach (var result in tmdbResults)
+                {
+                    <div class="col">
+                        <div class="card h-100">
+                            @if (!string.IsNullOrEmpty(result.PosterPath))
+                            {
+                                <img src="https://image.tmdb.org/t/p/w200@(result.PosterPath)" class="card-img-top" style="object-fit:cover;height:200px;" alt="@result.Title" />
+                            }
+                            <div class="card-body p-2">
+                                <p class="card-title fw-semibold small mb-1">@result.Title</p>
+                                <p class="card-text text-muted small">@(result.ReleaseDate?.Length >= 4 ? result.ReleaseDate[..4] : "")</p>
+                                <button class="btn btn-sm btn-primary w-100" @onclick="() => ImportFromTmdb(result.Id)" disabled="@importing">Import</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (importError is not null)
+{
+    <div class="alert alert-danger">@importError</div>
+}
+
+<EditForm @key="_formKey" Model="movie" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" />
+
+    <div class="row g-3">
+        <div class="col-12">
+            <label class="form-label">Title</label>
+            <InputText class="form-control" @bind-Value="movie.Title" />
+            <ValidationMessage For="() => movie.Title" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(movie.PosterUrl))
+        {
+            <div class="col-12">
+                <img src="@movie.PosterUrl" style="height:150px;border-radius:4px;" alt="Poster preview" />
+            </div>
+        }
+
+        <div class="col-md-4">
+            <label class="form-label">Release Year</label>
+            <InputNumber class="form-control" @bind-Value="movie.ReleaseYear" />
+            <ValidationMessage For="() => movie.ReleaseYear" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Genre</label>
+            <InputText class="form-control" @bind-Value="movie.Genre" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Rating (0–10)</label>
+            <InputNumber class="form-control" @bind-Value="movie.Rating" />
+            <ValidationMessage For="() => movie.Rating" />
+        </div>
+
+        <div class="col-12">
+            <label class="form-label">Director</label>
+            <InputText class="form-control" @bind-Value="movie.Director" />
+        </div>
+
+        <div class="col-12">
+            <label class="form-label">Synopsis</label>
+            <InputTextArea class="form-control" @bind-Value="movie.Synopsis" rows="4" />
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="/movies" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</EditForm>
+
+@code {
+    private Movie movie = new();
+    private int _formKey;
+    private string? importError;
+    private string tmdbQuery = "";
+    private List<TmdbMovieResult> tmdbResults = [];
+    private bool searching;
+    private bool importing;
+
+    private async Task OnTmdbKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SearchTmdb();
+    }
+
+    private async Task SearchTmdb()
+    {
+        if (string.IsNullOrWhiteSpace(tmdbQuery)) return;
+        searching = true;
+        tmdbResults = await TmdbService.SearchAsync(tmdbQuery);
+        searching = false;
+    }
+
+    private async Task ImportFromTmdb(int tmdbId)
+    {
+        importing = true;
+        importError = null;
+        var imported = await TmdbService.ImportAsync(tmdbId);
+        if (imported is not null)
+        {
+            movie.Title = imported.Title;
+            movie.ReleaseYear = imported.ReleaseYear;
+            movie.Genre = imported.Genre;
+            movie.Director = imported.Director;
+            movie.Rating = imported.Rating;
+            movie.Synopsis = imported.Synopsis;
+            movie.PosterUrl = imported.PosterUrl;
+            movie.TmdbId = imported.TmdbId;
+            _formKey++;
+        }
+        else
+        {
+            importError = "Could not import movie details. Check that your TMDB API key is set in appsettings.";
+        }
+        tmdbResults = [];
+        importing = false;
+    }
+
+    private async Task Save()
+    {
+        await MovieService.AddAsync(movie);
+        Nav.NavigateTo("/movies");
+    }
+}

@@ -1,23 +1,39 @@
 using BlazorWebAppMovies.Components;
+using BlazorWebAppMovies.Data;
+using BlazorWebAppMovies.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+
+builder.Services.AddDbContext<MovieDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("MovieDb")));
+
+builder.Services.AddScoped<IMovieService, MovieService>();
+
+builder.Services.AddHttpClient<ITmdbService, TmdbService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<MovieDbContext>();
+    db.Database.EnsureCreated();
+}
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();

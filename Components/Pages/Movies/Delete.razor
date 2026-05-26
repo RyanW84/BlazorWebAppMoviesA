@@ -1,0 +1,43 @@
+@page "/movies/{Id:int}/delete"
+@rendermode InteractiveServer
+@inject IMovieService MovieService
+@inject NavigationManager Nav
+
+<PageTitle>Delete Movie</PageTitle>
+
+<h1>Delete Movie</h1>
+
+@if (movie is null)
+{
+    <p>Movie not found.</p>
+}
+else
+{
+    <div class="alert alert-danger">
+        Are you sure you want to delete <strong>@movie.Title</strong> (@movie.ReleaseYear)?
+    </div>
+
+    @if (!string.IsNullOrEmpty(movie.PosterUrl))
+    {
+        <img src="@movie.PosterUrl" style="height:180px;border-radius:4px;" class="mb-3" alt="@movie.Title poster" />
+    }
+
+    <div class="d-flex gap-2">
+        <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+        <a href="/movies/@movie.Id" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private Movie? movie;
+
+    protected override async Task OnInitializedAsync() =>
+        movie = await MovieService.GetByIdAsync(Id);
+
+    private async Task ConfirmDelete()
+    {
+        await MovieService.DeleteAsync(Id);
+        Nav.NavigateTo("/movies");
+    }
+}
