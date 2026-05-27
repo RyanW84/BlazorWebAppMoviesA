@@ -18,13 +18,13 @@ public static class MovieSeeder
             .ToListAsync())
             .ToHashSet();
 
-        if (existingTmdbIds.Count >= 50)
+        if (existingTmdbIds.Count >= 2000)
         {
             logger.LogInformation("Seed: {Count} TMDB films already present, skipping", existingTmdbIds.Count);
             return;
         }
 
-        logger.LogInformation("Seed: discovering classic 1980–1999 films from TMDB…");
+        logger.LogInformation("Seed: discovering films from TMDB (1970–2024)…");
         var ids = await tmdb.DiscoverClassicIdsAsync();
         var toSeed = ids.Where(id => !existingTmdbIds.Contains(id)).ToList();
         logger.LogInformation("Seed: {Total} discovered, {Count} to insert", ids.Count, toSeed.Count);

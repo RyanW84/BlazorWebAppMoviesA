@@ -9,16 +9,27 @@
     <a href="/movies/create" class="btn btn-primary">Add Movie</a>
 </div>
 
-<div class="mb-3">
+<div class="d-flex gap-2 mb-3">
     <input class="form-control" value="@searchTerm" @oninput="OnSearchInput" placeholder="Search title, director, genre…" />
+    <select class="form-select" style="width:auto" value="@pageSize" @onchange="OnPageSizeChange">
+        <option value="25">25 / page</option>
+        <option value="50">50 / page</option>
+        <option value="100">100 / page</option>
+    </select>
 </div>
 
-@if (movies.Count == 0)
+@if (totalCount == 0)
 {
     <p class="text-muted">No movies found.</p>
 }
 else
 {
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <small class="text-muted">
+            Showing @((currentPage - 1) * pageSize + 1)–@(Math.Min(currentPage * pageSize, totalCount)) of @totalCount movies
+        </small>
+    </div>
+
     <table class="table table-hover align-middle">
         <thead>
             <tr>
@@ -61,6 +72,33 @@ else
             }
         </tbody>
     </table>
+
+    @if (totalPages > 1)
+    {
+        <nav aria-label="Movie page navigation">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">&#8249;</button>
+                </li>
+                @foreach (var p in PageNumbers())
+                {
+                    @if (p == 0)
+                    {
+                        <li class="page-item disabled"><span class="page-link">…</span></li>
+                    }
+                    else
+                    {
+                        <li class="page-item @(p == currentPage ? "active" : "")">
+                            <button class="page-link" @onclick="() => GoToPage(p)">@p</button>
+                        </li>
+                    }
+                }
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">&#8250;</button>
+                </li>
+            </ul>
+        </nav>
+    }
 }
 
 @code {
@@ -68,15 +106,24 @@ else
     private string searchTerm = "";
     private string sortBy = "title";
     private bool ascending = true;
+    private int currentPage = 1;
+    private int pageSize = 25;
+    private int totalCount = 0;
+    private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
 
     protected override async Task OnInitializedAsync() => await LoadMovies();
 
-    private async Task LoadMovies() =>
-        movies = await MovieService.GetAllAsync(searchTerm, sortBy, ascending);
+    private async Task LoadMovies()
+    {
+        var result = await MovieService.GetPagedAsync(searchTerm, sortBy, ascending, currentPage, pageSize);
+        movies = result.Movies;
+        totalCount = result.TotalCount;
+    }
 
     private async Task OnSearchInput(ChangeEventArgs e)
     {
         searchTerm = e.Value?.ToString() ?? "";
+        currentPage = 1;
         await LoadMovies();
     }
 
@@ -84,8 +131,41 @@ else
     {
         ascending = sortBy == column ? !ascending : true;
         sortBy = column;
+        currentPage = 1;
+        await LoadMovies();
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        await LoadMovies();
+    }
+
+    private async Task OnPageSizeChange(ChangeEventArgs e)
+    {
+        pageSize = int.Parse(e.Value?.ToString() ?? "25");
+        currentPage = 1;
         await LoadMovies();
     }
 
     private string SortIndicator(string column) => sortBy == column ? (ascending ? " ↑" : " ↓") : "";
+
+    private IEnumerable<int> PageNumbers()
+    {
+        if (totalPages <= 7)
+            return Enumerable.Range(1, totalPages);
+
+        var pages = new List<int> { 1 };
+
+        if (currentPage > 3) pages.Add(0);
+
+        for (var p = Math.Max(2, currentPage - 1); p <= Math.Min(totalPages - 1, currentPage + 1); p++)
+            pages.Add(p);
+
+        if (currentPage < totalPages - 2) pages.Add(0);
+
+        pages.Add(totalPages);
+        return pages;
+    }
 }

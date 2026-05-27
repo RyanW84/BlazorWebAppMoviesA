@@ -39,6 +39,41 @@ public class MovieService(MovieDbContext db) : IMovieService
         return await query.ToListAsync();
     }
 
+    public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25)
+    {
+        var query = db.Movies.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var terms = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var term in terms)
+            {
+                var t = term.ToLower();
+                var isYear = int.TryParse(term, out var parsedYear);
+                var y = parsedYear;
+                query = query.Where(m =>
+                    m.Title.ToLower().Contains(t) ||
+                    (m.Director != null && m.Director.ToLower().Contains(t)) ||
+                    (m.Genre != null && m.Genre.ToLower().Contains(t)) ||
+                    (isYear && m.ReleaseYear == y));
+            }
+        }
+
+        query = (sortBy.ToLower(), ascending) switch
+        {
+            ("year", true) => query.OrderBy(m => m.ReleaseYear),
+            ("year", false) => query.OrderByDescending(m => m.ReleaseYear),
+            ("rating", true) => query.OrderBy(m => m.Rating),
+            ("rating", false) => query.OrderByDescending(m => m.Rating),
+            (_, true) => query.OrderBy(m => m.Title),
+            (_, false) => query.OrderByDescending(m => m.Title),
+        };
+
+        var total = await query.CountAsync();
+        var movies = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return (movies, total);
+    }
+
     public async Task<Movie?> GetByIdAsync(int id) =>
         await db.Movies.FindAsync(id);
 

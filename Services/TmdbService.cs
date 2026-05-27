@@ -39,29 +39,51 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
 
     public async Task<List<int>> DiscoverClassicIdsAsync()
     {
-        var ids = new List<int>();
-        for (var page = 1; page <= 5; page++)
+        var ids = new HashSet<int>();
+
+        // 5-year windows from 1970–2024, 10 pages each → ~2,200 unique IDs
+        (string Start, string End)[] windows =
+        [
+            ("1970-01-01", "1974-12-31"),
+            ("1975-01-01", "1979-12-31"),
+            ("1980-01-01", "1984-12-31"),
+            ("1985-01-01", "1989-12-31"),
+            ("1990-01-01", "1994-12-31"),
+            ("1995-01-01", "1999-12-31"),
+            ("2000-01-01", "2004-12-31"),
+            ("2005-01-01", "2009-12-31"),
+            ("2010-01-01", "2014-12-31"),
+            ("2015-01-01", "2019-12-31"),
+            ("2020-01-01", "2024-12-31"),
+        ];
+
+        foreach (var (start, end) in windows)
         {
-            try
+            for (var page = 1; page <= 10; page++)
             {
-                var response = await httpClient.GetAsync(
-                    $"discover/movie?api_key={_apiKey}" +
-                    $"&primary_release_date.gte=1980-01-01&primary_release_date.lte=1999-12-31" +
-                    $"&sort_by=vote_count.desc&vote_count.gte=800&page={page}&language=en-US");
+                try
+                {
+                    var response = await httpClient.GetAsync(
+                        $"discover/movie?api_key={_apiKey}" +
+                        $"&primary_release_date.gte={start}&primary_release_date.lte={end}" +
+                        $"&sort_by=vote_count.desc&vote_count.gte=100&page={page}&language=en-US");
 
-                if (!response.IsSuccessStatusCode) break;
+                    if (!response.IsSuccessStatusCode) break;
 
-                var result = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
-                ids.AddRange(result?.Results?.Select(r => r.Id) ?? Enumerable.Empty<int>());
-                await Task.Delay(300);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "TMDB discover failed on page {Page}", page);
-                break;
+                    var result = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
+                    foreach (var r in result?.Results ?? [])
+                        ids.Add(r.Id);
+                    await Task.Delay(300);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "TMDB discover failed on page {Page} for {Start}–{End}", page, start, end);
+                    break;
+                }
             }
         }
-        return ids;
+
+        return [.. ids];
     }
 
     public async Task<Movie?> ImportAsync(int tmdbId)
