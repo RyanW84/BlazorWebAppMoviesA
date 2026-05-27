@@ -11,7 +11,20 @@ public class MovieService(MovieDbContext db) : IMovieService
         var query = db.Movies.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(m => m.Title.Contains(search) || (m.Director != null && m.Director.Contains(search)));
+        {
+            var terms = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var term in terms)
+            {
+                var t = term.ToLower();
+                var isYear = int.TryParse(term, out var parsedYear);
+                var y = parsedYear;
+                query = query.Where(m =>
+                    m.Title.ToLower().Contains(t) ||
+                    (m.Director != null && m.Director.ToLower().Contains(t)) ||
+                    (m.Genre != null && m.Genre.ToLower().Contains(t)) ||
+                    (isYear && m.ReleaseYear == y));
+            }
+        }
 
         query = (sortBy.ToLower(), ascending) switch
         {

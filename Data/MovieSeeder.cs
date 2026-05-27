@@ -1,0 +1,50 @@
+using BlazorWebAppMovies.Services;
+using Microsoft.EntityFrameworkCore;
+
+namespace BlazorWebAppMovies.Data;
+
+public static class MovieSeeder
+{
+    public static async Task SeedAsync(IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<MovieDbContext>();
+        var tmdb = scope.ServiceProvider.GetRequiredService<ITmdbService>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("MovieSeeder");
+
+        var existingTmdbIds = (await db.Movies
+            .Where(m => m.TmdbId != null)
+            .Select(m => m.TmdbId!.Value)
+            .ToListAsync())
+            .ToHashSet();
+
+        if (existingTmdbIds.Count >= 50)
+        {
+            logger.LogInformation("Seed: {Count} TMDB films already present, skipping", existingTmdbIds.Count);
+            return;
+        }
+
+        logger.LogInformation("Seed: discovering classic 1980–1999 films from TMDB…");
+        var ids = await tmdb.DiscoverClassicIdsAsync();
+        var toSeed = ids.Where(id => !existingTmdbIds.Contains(id)).ToList();
+        logger.LogInformation("Seed: {Total} discovered, {Count} to insert", ids.Count, toSeed.Count);
+
+        var seeded = 0;
+        foreach (var id in toSeed)
+        {
+            var movie = await tmdb.ImportAsync(id);
+            if (movie is not null)
+            {
+                db.Movies.Add(movie);
+                await db.SaveChangesAsync();
+                seeded++;
+                logger.LogInformation(
+                    "Seed [{Current}/{Total}]: \"{Title}\" ({Year})",
+                    seeded, toSeed.Count, movie.Title, movie.ReleaseYear);
+            }
+            await Task.Delay(300);
+        }
+
+        logger.LogInformation("Seed complete — {Count} films added", seeded);
+    }
+}

@@ -1,8 +1,5 @@
-using System.Net.Http.Json;
 using BlazorWebAppMovies.Models.Movie;
 using BlazorWebAppMovies.Models.Tmdb;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace BlazorWebAppMovies.Services;
 
@@ -38,6 +35,33 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
             logger.LogError(ex, "TMDB search failed for \"{Query}\"", query);
             return [];
         }
+    }
+
+    public async Task<List<int>> DiscoverClassicIdsAsync()
+    {
+        var ids = new List<int>();
+        for (var page = 1; page <= 5; page++)
+        {
+            try
+            {
+                var response = await httpClient.GetAsync(
+                    $"discover/movie?api_key={_apiKey}" +
+                    $"&primary_release_date.gte=1980-01-01&primary_release_date.lte=1999-12-31" +
+                    $"&sort_by=vote_count.desc&vote_count.gte=800&page={page}&language=en-US");
+
+                if (!response.IsSuccessStatusCode) break;
+
+                var result = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
+                ids.AddRange(result?.Results?.Select(r => r.Id) ?? Enumerable.Empty<int>());
+                await Task.Delay(300);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "TMDB discover failed on page {Page}", page);
+                break;
+            }
+        }
+        return ids;
     }
 
     public async Task<Movie?> ImportAsync(int tmdbId)

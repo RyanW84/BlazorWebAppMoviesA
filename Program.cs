@@ -35,6 +35,9 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
+// Seed classic films in the background so startup is not blocked
+_ = Task.Run(() => MovieSeeder.SeedAsync(app.Services));
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
