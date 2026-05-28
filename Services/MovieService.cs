@@ -77,6 +77,13 @@ public class MovieService(MovieDbContext db) : IMovieService
         return (movies, total);
     }
 
+    public async Task<int?> GetRandomIdAsync()
+    {
+        var ids = await db.Movies.Select(m => m.Id).ToListAsync();
+        if (ids.Count == 0) return null;
+        return ids[Random.Shared.Next(ids.Count)];
+    }
+
     public async Task<List<string>> GetGenresAsync() =>
         await db.Movies
             .Where(m => m.Genre != null && m.Genre != "")
