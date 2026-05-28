@@ -11,6 +11,7 @@ builder.Services.AddDbContext<MovieDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("MovieDb")));
 
 builder.Services.AddScoped<IMovieService, MovieService>();
+builder.Services.AddHostedService<CastBackfillService>();
 
 builder.Services.AddHttpClient<ITmdbService, TmdbService>(client =>
 {

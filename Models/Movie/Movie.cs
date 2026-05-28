@@ -27,5 +27,7 @@ namespace BlazorWebAppMovies.Models.Movie
         public string? PosterUrl { get; set; }
 
         public int? TmdbId { get; set; }
+
+        public List<CastMember> Cast { get; set; } = [];
     }
 }

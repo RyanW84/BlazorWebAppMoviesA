@@ -77,6 +77,16 @@ public class MovieService(MovieDbContext db) : IMovieService
         return (movies, total);
     }
 
+    public async Task SaveCastAsync(int movieId, List<CastMember> cast)
+    {
+        var existing = db.CastMembers.Where(c => c.MovieId == movieId);
+        db.CastMembers.RemoveRange(existing);
+        foreach (var member in cast)
+            member.MovieId = movieId;
+        db.CastMembers.AddRange(cast);
+        await db.SaveChangesAsync();
+    }
+
     public async Task<int?> GetRandomIdAsync()
     {
         var ids = await db.Movies.Select(m => m.Id).ToListAsync();
@@ -93,7 +103,7 @@ public class MovieService(MovieDbContext db) : IMovieService
             .ToListAsync();
 
     public async Task<Movie?> GetByIdAsync(int id) =>
-        await db.Movies.FindAsync(id);
+        await db.Movies.Include(m => m.Cast.OrderBy(c => c.Order)).FirstOrDefaultAsync(m => m.Id == id);
 
     public async Task AddAsync(Movie movie)
     {

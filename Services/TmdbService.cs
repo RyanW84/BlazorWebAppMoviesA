@@ -86,6 +86,34 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         return [.. ids];
     }
 
+    public async Task<List<CastMember>> FetchCastAsync(int tmdbId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"movie/{tmdbId}/credits?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return [];
+
+            var data = await response.Content.ReadFromJsonAsync<TmdbCredits>();
+            return data?.Cast
+                .OrderBy(c => c.Order)
+                .Take(10)
+                .Select(c => new CastMember
+                {
+                    Name = c.Name,
+                    Character = c.Character,
+                    Order = c.Order,
+                    ProfileUrl = c.ProfilePath != null ? $"{ImageBaseUrl}{c.ProfilePath}" : null
+                })
+                .ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB credits fetch failed for tmdbId={TmdbId}", tmdbId);
+            return [];
+        }
+    }
+
     public async Task<string?> GetTrailerKeyAsync(int tmdbId)
     {
         try
@@ -137,6 +165,18 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
 
             logger.LogInformation("TMDB import succeeded: \"{Title}\" ({Year}), director={Director}", details.Title, releaseYear, director ?? "unknown");
 
+            var cast = details.Credits.Cast
+                .OrderBy(c => c.Order)
+                .Take(10)
+                .Select(c => new CastMember
+                {
+                    Name = c.Name,
+                    Character = c.Character,
+                    Order = c.Order,
+                    ProfileUrl = c.ProfilePath != null ? $"{ImageBaseUrl}{c.ProfilePath}" : null
+                })
+                .ToList();
+
             return new Movie
             {
                 Title = details.Title,
@@ -146,7 +186,8 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                 Rating = (decimal)Math.Round(details.VoteAverage, 1),
                 Synopsis = details.Overview,
                 PosterUrl = details.PosterPath != null ? $"{ImageBaseUrl}{details.PosterPath}" : null,
-                TmdbId = details.Id
+                TmdbId = details.Id,
+                Cast = cast
             };
         }
         catch (Exception ex)

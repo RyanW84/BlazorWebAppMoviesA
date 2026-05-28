@@ -64,12 +64,14 @@ else
             {
                 <tr>
                     <td>
-                        @if (!string.IsNullOrEmpty(movie.PosterUrl))
-                        {
-                            <img src="@movie.PosterUrl" alt="@movie.Title" style="height:60px;width:40px;object-fit:cover;border-radius:3px;" />
-                        }
+                        <a href="/movies/@movie.Id">
+                            @if (!string.IsNullOrEmpty(movie.PosterUrl))
+                            {
+                                <img src="@movie.PosterUrl" alt="@movie.Title" style="height:60px;width:40px;object-fit:cover;border-radius:3px;" />
+                            }
+                        </a>
                     </td>
-                    <td>@movie.Title</td>
+                    <td><a href="/movies/@movie.Id" class="text-decoration-none text-body fw-semibold">@movie.Title</a></td>
                     <td>@movie.ReleaseYear</td>
                     <td>@movie.Rating.ToString("F1")</td>
                     <td>@movie.Genre</td>

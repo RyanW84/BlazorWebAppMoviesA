@@ -67,8 +67,26 @@ namespace BlazorWebAppMovies.Models.Tmdb
 
     public class TmdbCredits
     {
+        [JsonPropertyName("cast")]
+        public List<TmdbCastMember> Cast { get; set; } = [];
+
         [JsonPropertyName("crew")]
         public List<TmdbCrewMember> Crew { get; set; } = [];
+    }
+
+    public class TmdbCastMember
+    {
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = "";
+
+        [JsonPropertyName("character")]
+        public string? Character { get; set; }
+
+        [JsonPropertyName("order")]
+        public int Order { get; set; }
+
+        [JsonPropertyName("profile_path")]
+        public string? ProfilePath { get; set; }
     }
 
     public class TmdbCrewMember
