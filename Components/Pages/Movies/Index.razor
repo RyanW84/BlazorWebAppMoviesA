@@ -11,6 +11,13 @@
 
 <div class="d-flex gap-2 mb-3">
     <input class="form-control" value="@searchTerm" @oninput="OnSearchInput" placeholder="Search title, director, genre…" />
+    <select class="form-select" style="width:auto" value="@selectedGenre" @onchange="OnGenreChange">
+        <option value="">All genres</option>
+        @foreach (var g in genres)
+        {
+            <option value="@g">@g</option>
+        }
+    </select>
     <select class="form-select" style="width:auto" value="@pageSize" @onchange="OnPageSizeChange">
         <option value="25">25 / page</option>
         <option value="50">50 / page</option>
@@ -103,7 +110,9 @@ else
 
 @code {
     private List<Movie> movies = [];
+    private List<string> genres = [];
     private string searchTerm = "";
+    private string selectedGenre = "";
     private string sortBy = "title";
     private bool ascending = true;
     private int currentPage = 1;
@@ -111,11 +120,15 @@ else
     private int totalCount = 0;
     private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
 
-    protected override async Task OnInitializedAsync() => await LoadMovies();
+    protected override async Task OnInitializedAsync()
+    {
+        genres = await MovieService.GetGenresAsync();
+        await LoadMovies();
+    }
 
     private async Task LoadMovies()
     {
-        var result = await MovieService.GetPagedAsync(searchTerm, sortBy, ascending, currentPage, pageSize);
+        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize);
         movies = result.Movies;
         totalCount = result.TotalCount;
     }
@@ -123,6 +136,13 @@ else
     private async Task OnSearchInput(ChangeEventArgs e)
     {
         searchTerm = e.Value?.ToString() ?? "";
+        currentPage = 1;
+        await LoadMovies();
+    }
+
+    private async Task OnGenreChange(ChangeEventArgs e)
+    {
+        selectedGenre = e.Value?.ToString() ?? "";
         currentPage = 1;
         await LoadMovies();
     }

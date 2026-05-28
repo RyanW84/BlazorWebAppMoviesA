@@ -39,7 +39,7 @@ public class MovieService(MovieDbContext db) : IMovieService
         return await query.ToListAsync();
     }
 
-    public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25)
+    public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string? genre = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25)
     {
         var query = db.Movies.AsQueryable();
 
@@ -59,6 +59,9 @@ public class MovieService(MovieDbContext db) : IMovieService
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(genre))
+            query = query.Where(m => m.Genre != null && m.Genre.ToLower().Contains(genre.ToLower()));
+
         query = (sortBy.ToLower(), ascending) switch
         {
             ("year", true) => query.OrderBy(m => m.ReleaseYear),
@@ -73,6 +76,14 @@ public class MovieService(MovieDbContext db) : IMovieService
         var movies = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return (movies, total);
     }
+
+    public async Task<List<string>> GetGenresAsync() =>
+        await db.Movies
+            .Where(m => m.Genre != null && m.Genre != "")
+            .Select(m => m.Genre!)
+            .Distinct()
+            .OrderBy(g => g)
+            .ToListAsync();
 
     public async Task<Movie?> GetByIdAsync(int id) =>
         await db.Movies.FindAsync(id);
