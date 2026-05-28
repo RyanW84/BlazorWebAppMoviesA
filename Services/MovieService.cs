@@ -39,7 +39,7 @@ public class MovieService(MovieDbContext db) : IMovieService
         return await query.ToListAsync();
     }
 
-    public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string? genre = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25)
+    public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string? genre = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false)
     {
         var query = db.Movies.AsQueryable();
 
@@ -62,6 +62,9 @@ public class MovieService(MovieDbContext db) : IMovieService
         if (!string.IsNullOrWhiteSpace(genre))
             query = query.Where(m => m.Genre != null && m.Genre.ToLower().Contains(genre.ToLower()));
 
+        if (favoritesOnly)
+            query = query.Where(m => m.IsFavorite);
+
         query = (sortBy.ToLower(), ascending) switch
         {
             ("year", true) => query.OrderBy(m => m.ReleaseYear),
@@ -75,6 +78,14 @@ public class MovieService(MovieDbContext db) : IMovieService
         var total = await query.CountAsync();
         var movies = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return (movies, total);
+    }
+
+    public async Task ToggleFavoriteAsync(int id)
+    {
+        var movie = await db.Movies.FindAsync(id);
+        if (movie is null) return;
+        movie.IsFavorite = !movie.IsFavorite;
+        await db.SaveChangesAsync();
     }
 
     public async Task<Dictionary<int, int>> GetLocalIdsByTmdbIdsAsync(IEnumerable<int> tmdbIds)

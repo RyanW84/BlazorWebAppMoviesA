@@ -72,6 +72,12 @@ else
                 <a href="/movies" class="btn btn-outline-secondary">Back</a>
                 <a href="/movies/@movie.Id/edit" class="btn btn-primary">Edit</a>
                 <a href="/movies/@movie.Id/delete" class="btn btn-danger">Delete</a>
+                <form method="post" @formname="toggle-favorite" @onsubmit="ToggleFavorite">
+                    <AntiforgeryToken />
+                    <button type="submit" class="btn btn-sm @(movie.IsFavorite ? "btn-danger" : "btn-outline-danger")" title="@(movie.IsFavorite ? "Remove from favorites" : "Add to favorites")">
+                        &#9829; @(movie.IsFavorite ? "Favorited" : "Favorite")
+                    </button>
+                </form>
                 @if (movie.TmdbId is not null && movie.Cast.Count == 0)
                 {
                     <form method="post" @formname="load-cast" @onsubmit="LoadCast">
@@ -227,6 +233,13 @@ else
         }
         __builder.CloseElement();
     };
+
+    private async Task ToggleFavorite()
+    {
+        if (movie is null) return;
+        await MovieService.ToggleFavoriteAsync(movie.Id);
+        movie.IsFavorite = !movie.IsFavorite;
+    }
 
     private async Task LoadCast()
     {
