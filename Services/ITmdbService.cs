@@ -10,4 +10,5 @@ public interface ITmdbService
     Task<List<int>> DiscoverClassicIdsAsync();
     Task<string?> GetTrailerKeyAsync(int tmdbId);
     Task<List<CastMember>> FetchCastAsync(int tmdbId);
+    Task<TmdbWatchRegion?> GetWatchProvidersAsync(int tmdbId, string region = "US");
 }

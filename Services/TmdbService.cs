@@ -114,6 +114,26 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         }
     }
 
+    public async Task<TmdbWatchRegion?> GetWatchProvidersAsync(int tmdbId, string region = "US")
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"movie/{tmdbId}/watch/providers?api_key={_apiKey}");
+            if (!response.IsSuccessStatusCode) return null;
+
+            var data = await response.Content.ReadFromJsonAsync<TmdbWatchProvidersResponse>();
+            if (data is null) return null;
+            data.Results.TryGetValue(region, out var watchRegion);
+            return watchRegion;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB watch providers fetch failed for tmdbId={TmdbId}", tmdbId);
+            return null;
+        }
+    }
+
     public async Task<string?> GetTrailerKeyAsync(int tmdbId)
     {
         try

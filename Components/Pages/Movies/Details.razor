@@ -83,6 +83,20 @@ else
         </div>
     </div>
 
+    @if (watchProviders is not null && (watchProviders.Flatrate.Count > 0 || watchProviders.Rent.Count > 0 || watchProviders.Buy.Count > 0))
+    {
+        <div class="mt-4">
+            <h5>Where to Watch</h5>
+            @WatchProviderRow("Stream", watchProviders.Flatrate)
+            @WatchProviderRow("Rent", watchProviders.Rent)
+            @WatchProviderRow("Buy", watchProviders.Buy)
+            @if (watchProviders.Link is not null)
+            {
+                <small><a href="@watchProviders.Link" target="_blank" rel="noopener noreferrer" class="text-muted">Full availability on JustWatch</a></small>
+            }
+        </div>
+    }
+
     @if (trailerKey is not null)
     {
         <div class="mt-4">
@@ -103,13 +117,44 @@ else
     [Parameter] public int Id { get; set; }
     private Movie? movie;
     private string? trailerKey;
+    private TmdbWatchRegion? watchProviders;
 
     protected override async Task OnInitializedAsync()
     {
         movie = await MovieService.GetByIdAsync(Id);
         if (movie?.TmdbId is int tmdbId)
-            trailerKey = await TmdbService.GetTrailerKeyAsync(tmdbId);
+        {
+            var trailerTask = TmdbService.GetTrailerKeyAsync(tmdbId);
+            var providersTask = TmdbService.GetWatchProvidersAsync(tmdbId);
+            await Task.WhenAll(trailerTask, providersTask);
+            trailerKey = trailerTask.Result;
+            watchProviders = providersTask.Result;
+        }
     }
+
+    private static readonly string LogoBase = "https://image.tmdb.org/t/p/w45";
+
+    private RenderFragment WatchProviderRow(string label, List<TmdbWatchProvider> providers) => __builder =>
+    {
+        if (providers.Count == 0) return;
+        __builder.OpenElement(0, "div");
+        __builder.AddAttribute(1, "class", "d-flex align-items-center gap-2 mb-2");
+        __builder.OpenElement(2, "small");
+        __builder.AddAttribute(3, "class", "text-muted me-1");
+        __builder.AddAttribute(4, "style", "width:3.5rem;");
+        __builder.AddContent(5, label);
+        __builder.CloseElement();
+        foreach (var p in providers.OrderBy(p => p.DisplayPriority).Take(8))
+        {
+            __builder.OpenElement(6, "img");
+            __builder.AddAttribute(7, "src", p.LogoPath != null ? $"{LogoBase}{p.LogoPath}" : "");
+            __builder.AddAttribute(8, "alt", p.Name);
+            __builder.AddAttribute(9, "title", p.Name);
+            __builder.AddAttribute(10, "style", "width:36px;height:36px;border-radius:6px;");
+            __builder.CloseElement();
+        }
+        __builder.CloseElement();
+    };
 
     private async Task LoadCast()
     {

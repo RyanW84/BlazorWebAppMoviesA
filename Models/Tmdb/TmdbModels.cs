@@ -104,6 +104,39 @@ namespace BlazorWebAppMovies.Models.Tmdb
         public List<TmdbVideoResult> Results { get; set; } = [];
     }
 
+    public class TmdbWatchProvidersResponse
+    {
+        [JsonPropertyName("results")]
+        public Dictionary<string, TmdbWatchRegion> Results { get; set; } = [];
+    }
+
+    public class TmdbWatchRegion
+    {
+        [JsonPropertyName("link")]
+        public string? Link { get; set; }
+
+        [JsonPropertyName("flatrate")]
+        public List<TmdbWatchProvider> Flatrate { get; set; } = [];
+
+        [JsonPropertyName("rent")]
+        public List<TmdbWatchProvider> Rent { get; set; } = [];
+
+        [JsonPropertyName("buy")]
+        public List<TmdbWatchProvider> Buy { get; set; } = [];
+    }
+
+    public class TmdbWatchProvider
+    {
+        [JsonPropertyName("provider_name")]
+        public string Name { get; set; } = "";
+
+        [JsonPropertyName("logo_path")]
+        public string? LogoPath { get; set; }
+
+        [JsonPropertyName("display_priority")]
+        public int DisplayPriority { get; set; }
+    }
+
     public class TmdbVideoResult
     {
         [JsonPropertyName("key")]
