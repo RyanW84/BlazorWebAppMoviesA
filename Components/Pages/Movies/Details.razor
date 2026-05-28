@@ -1,5 +1,6 @@
 @page "/movies/{Id:int}"
 @inject IMovieService MovieService
+@inject ITmdbService TmdbService
 
 <PageTitle>@(movie?.Title ?? "Movie")</PageTitle>
 
@@ -43,12 +44,31 @@ else
             </div>
         </div>
     </div>
+
+    @if (trailerKey is not null)
+    {
+        <div class="mt-4">
+            <h5>Trailer</h5>
+            <div class="ratio ratio-16x9" style="max-width:720px;">
+                <iframe src="https://www.youtube.com/embed/@trailerKey"
+                        title="@movie.Title trailer"
+                        allowfullscreen
+                        referrerpolicy="strict-origin-when-cross-origin">
+                </iframe>
+            </div>
+        </div>
+    }
 }
 
 @code {
     [Parameter] public int Id { get; set; }
     private Movie? movie;
+    private string? trailerKey;
 
-    protected override async Task OnInitializedAsync() =>
+    protected override async Task OnInitializedAsync()
+    {
         movie = await MovieService.GetByIdAsync(Id);
+        if (movie?.TmdbId is int tmdbId)
+            trailerKey = await TmdbService.GetTrailerKeyAsync(tmdbId);
+    }
 }

@@ -86,6 +86,28 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         return [.. ids];
     }
 
+    public async Task<string?> GetTrailerKeyAsync(int tmdbId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"movie/{tmdbId}/videos?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+
+            var data = await response.Content.ReadFromJsonAsync<TmdbVideosResponse>();
+            var trailer = data?.Results
+                .Where(v => v.Site == "YouTube" && v.Type == "Trailer")
+                .OrderByDescending(v => v.Official)
+                .FirstOrDefault();
+            return trailer?.Key;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB videos fetch failed for tmdbId={TmdbId}", tmdbId);
+            return null;
+        }
+    }
+
     public async Task<Movie?> ImportAsync(int tmdbId)
     {
         logger.LogInformation("TMDB import: tmdbId={TmdbId}", tmdbId);

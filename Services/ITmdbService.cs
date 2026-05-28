@@ -8,4 +8,5 @@ public interface ITmdbService
     Task<List<TmdbMovieResult>> SearchAsync(string query);
     Task<Movie?> ImportAsync(int tmdbId);
     Task<List<int>> DiscoverClassicIdsAsync();
+    Task<string?> GetTrailerKeyAsync(int tmdbId);
 }
