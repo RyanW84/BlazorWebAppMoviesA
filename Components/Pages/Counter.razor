@@ -1,13 +1,37 @@
-﻿@page "/counter"
+@page "/counter"
 @rendermode InteractiveServer
 
-<PageTitle>Counter</PageTitle>
+<PageTitle>Body Count — Skynet Archives</PageTitle>
 
-<h1>Counter</h1>
+<div class="counter-page">
+    <div class="counter-header">
+        <div class="counter-label-top">// T-800 THREAT ASSESSMENT UNIT</div>
+        <h1>THREAT COUNTER</h1>
+    </div>
 
-<p role="status">Current count: @currentCount</p>
+    <div class="counter-display" role="status">
+        <div class="counter-sublabel">TARGETS NEUTRALIZED</div>
+        <div class="counter-value">@currentCount</div>
+        <div class="counter-unit">confirmed eliminations</div>
+    </div>
 
-<button class="btn btn-primary" @onclick="IncrementCount">Click me</button>
+    <button class="btn btn-primary btn-lg terminate-btn" @onclick="IncrementCount">
+        Terminate Target
+    </button>
+
+    @if (currentCount >= 10)
+    {
+        <div class="counter-alert">
+            ⚠ WARNING: High elimination count detected. Skynet is watching.
+        </div>
+    }
+    else if (currentCount > 0)
+    {
+        <div class="counter-status">
+            <span class="prompt">LOG:</span> @currentCount threat@(currentCount == 1 ? "" : "s") neutralised. Mission @(currentCount >= 5 ? "critical" : "active").
+        </div>
+    }
+</div>
 
 @code {
     private int currentCount = 0;

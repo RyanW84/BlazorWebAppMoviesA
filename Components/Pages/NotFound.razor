@@ -1,5 +1,24 @@
-﻿@page "/not-found"
+@page "/not-found"
 @layout MainLayout
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+<div class="notfound-page">
+    <div class="notfound-code">404</div>
+    <h1>TARGET NOT FOUND</h1>
+
+    <div class="notfound-terminal">
+        <div class="nf-line">
+            <span class="prompt">ERROR:</span>
+            <span>The requested resource does not exist in the Skynet database.</span>
+        </div>
+        <div class="nf-line">
+            <span class="prompt">STATUS:</span>
+            <span>File purged, never classified, or location unknown.</span>
+        </div>
+        <div class="nf-line">
+            <span class="prompt">ACTION:</span>
+            <span>Return to base and await further orders.</span>
+        </div>
+    </div>
+
+    <a href="/" class="btn btn-primary mt-4">Return to Base</a>
+</div>
