@@ -111,6 +111,35 @@ else
         </div>
     }
 
+    @if (recommendations.Count > 0)
+    {
+        <div class="mt-4">
+            <h5>More Like This</h5>
+            <div class="d-flex gap-3 overflow-auto pb-2">
+                @foreach (var rec in recommendations)
+                {
+                    var year = rec.ReleaseDate?.Split('-')[0];
+                    var posterSrc = rec.PosterPath != null
+                        ? $"https://image.tmdb.org/t/p/w154{rec.PosterPath}"
+                        : null;
+
+                    @if (recommendationLocalIds.TryGetValue(rec.Id, out var localId))
+                    {
+                        <a href="/movies/@localId" class="text-decoration-none flex-shrink-0" style="width:100px;">
+                            @RecommendationCard(rec.Title, year, posterSrc)
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="flex-shrink-0" style="width:100px;">
+                            @RecommendationCard(rec.Title, year, posterSrc)
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
 }
 
 @code {
@@ -118,6 +147,8 @@ else
     private Movie? movie;
     private string? trailerKey;
     private TmdbWatchRegion? watchProviders;
+    private List<TmdbMovieResult> recommendations = [];
+    private Dictionary<int, int> recommendationLocalIds = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -126,13 +157,54 @@ else
         {
             var trailerTask = TmdbService.GetTrailerKeyAsync(tmdbId);
             var providersTask = TmdbService.GetWatchProvidersAsync(tmdbId);
-            await Task.WhenAll(trailerTask, providersTask);
+            var recsTask = TmdbService.GetRecommendationsAsync(tmdbId);
+            await Task.WhenAll(trailerTask, providersTask, recsTask);
             trailerKey = trailerTask.Result;
             watchProviders = providersTask.Result;
+            recommendations = recsTask.Result;
+
+            if (recommendations.Count > 0)
+            {
+                var tmdbIds = recommendations.Select(r => r.Id);
+                recommendationLocalIds = await MovieService.GetLocalIdsByTmdbIdsAsync(tmdbIds);
+            }
         }
     }
 
     private static readonly string LogoBase = "https://image.tmdb.org/t/p/w45";
+
+    private RenderFragment RecommendationCard(string title, string? year, string? posterSrc) => __builder =>
+    {
+        if (posterSrc is not null)
+        {
+            __builder.OpenElement(0, "img");
+            __builder.AddAttribute(1, "src", posterSrc);
+            __builder.AddAttribute(2, "alt", title);
+            __builder.AddAttribute(3, "style", "width:100px;height:150px;object-fit:cover;border-radius:4px;display:block;");
+            __builder.CloseElement();
+        }
+        else
+        {
+            __builder.OpenElement(0, "div");
+            __builder.AddAttribute(1, "class", "bg-secondary d-flex align-items-center justify-content-center");
+            __builder.AddAttribute(2, "style", "width:100px;height:150px;border-radius:4px;color:white;font-size:0.7rem;text-align:center;padding:4px;");
+            __builder.AddContent(3, title);
+            __builder.CloseElement();
+        }
+        __builder.OpenElement(4, "small");
+        __builder.AddAttribute(5, "class", "d-block mt-1 text-body");
+        __builder.AddAttribute(6, "style", "font-size:0.7rem;line-height:1.3;");
+        __builder.AddContent(7, title);
+        __builder.CloseElement();
+        if (year is not null)
+        {
+            __builder.OpenElement(8, "small");
+            __builder.AddAttribute(9, "class", "text-muted");
+            __builder.AddAttribute(10, "style", "font-size:0.65rem;");
+            __builder.AddContent(11, year);
+            __builder.CloseElement();
+        }
+    };
 
     private RenderFragment WatchProviderRow(string label, List<TmdbWatchProvider> providers) => __builder =>
     {

@@ -114,6 +114,24 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         }
     }
 
+    public async Task<List<TmdbMovieResult>> GetRecommendationsAsync(int tmdbId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"movie/{tmdbId}/recommendations?api_key={_apiKey}&language=en-US&page=1");
+            if (!response.IsSuccessStatusCode) return [];
+
+            var data = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
+            return data?.Results.Take(12).ToList() ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB recommendations fetch failed for tmdbId={TmdbId}", tmdbId);
+            return [];
+        }
+    }
+
     public async Task<TmdbWatchRegion?> GetWatchProvidersAsync(int tmdbId, string region = "US")
     {
         try

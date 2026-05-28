@@ -9,6 +9,7 @@ namespace BlazorWebAppMovies.Services
         Task<List<string>> GetGenresAsync();
         Task<int?> GetRandomIdAsync();
         Task SaveCastAsync(int movieId, List<CastMember> cast);
+        Task<Dictionary<int, int>> GetLocalIdsByTmdbIdsAsync(IEnumerable<int> tmdbIds);
         Task<Movie?> GetByIdAsync(int id);
         Task AddAsync(Movie movie);
         Task UpdateAsync(Movie movie);

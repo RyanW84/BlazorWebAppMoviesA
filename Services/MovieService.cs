@@ -77,6 +77,14 @@ public class MovieService(MovieDbContext db) : IMovieService
         return (movies, total);
     }
 
+    public async Task<Dictionary<int, int>> GetLocalIdsByTmdbIdsAsync(IEnumerable<int> tmdbIds)
+    {
+        var ids = tmdbIds.ToList();
+        return await db.Movies
+            .Where(m => m.TmdbId != null && ids.Contains(m.TmdbId.Value))
+            .ToDictionaryAsync(m => m.TmdbId!.Value, m => m.Id);
+    }
+
     public async Task SaveCastAsync(int movieId, List<CastMember> cast)
     {
         var existing = db.CastMembers.Where(c => c.MovieId == movieId);
