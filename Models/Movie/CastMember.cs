@@ -18,5 +18,7 @@ namespace BlazorWebAppMovies.Models.Movie
         public int Order { get; set; }
 
         public string? ProfileUrl { get; set; }
+
+        public int? TmdbPersonId { get; set; }
     }
 }

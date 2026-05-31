@@ -37,6 +37,38 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         }
     }
 
+    public async Task<TmdbPersonDetails?> GetPersonDetailsAsync(int personId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"person/{personId}?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<TmdbPersonDetails>();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB person details fetch failed for personId={PersonId}", personId);
+            return null;
+        }
+    }
+
+    public async Task<TmdbPersonMovieCreditsResponse?> GetPersonMovieCreditsAsync(int personId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"person/{personId}/movie_credits?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<TmdbPersonMovieCreditsResponse>();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB person credits fetch failed for personId={PersonId}", personId);
+            return null;
+        }
+    }
+
     public async Task<List<int>> DiscoverClassicIdsAsync()
     {
         var ids = new HashSet<int>();
@@ -86,32 +118,44 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         return [.. ids];
     }
 
-    public async Task<List<CastMember>> FetchCastAsync(int tmdbId)
+    public async Task<(List<CastMember> Cast, int? DirectorTmdbId)> FetchCreditsAsync(int tmdbId)
     {
         try
         {
             var response = await httpClient.GetAsync(
                 $"movie/{tmdbId}/credits?api_key={_apiKey}&language=en-US");
-            if (!response.IsSuccessStatusCode) return [];
+            if (!response.IsSuccessStatusCode) return ([], null);
 
             var data = await response.Content.ReadFromJsonAsync<TmdbCredits>();
-            return data?.Cast
+            if (data is null) return ([], null);
+
+            var cast = data.Cast
                 .OrderBy(c => c.Order)
                 .Take(10)
                 .Select(c => new CastMember
                 {
+                    TmdbPersonId = c.Id,
                     Name = c.Name,
                     Character = c.Character,
                     Order = c.Order,
                     ProfileUrl = c.ProfilePath != null ? $"{ImageBaseUrl}{c.ProfilePath}" : null
                 })
-                .ToList() ?? [];
+                .ToList();
+
+            var directorTmdbId = data.Crew.FirstOrDefault(c => c.Job == "Director")?.Id;
+            return (cast, directorTmdbId);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "TMDB credits fetch failed for tmdbId={TmdbId}", tmdbId);
-            return [];
+            return ([], null);
         }
+    }
+
+    public async Task<List<CastMember>> FetchCastAsync(int tmdbId)
+    {
+        var (cast, _) = await FetchCreditsAsync(tmdbId);
+        return cast;
     }
 
     public async Task<List<TmdbMovieResult>> GetRecommendationsAsync(int tmdbId)
@@ -198,7 +242,9 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                 return null;
             }
 
-            var director = details.Credits.Crew.FirstOrDefault(c => c.Job == "Director")?.Name;
+            var directorCrew = details.Credits.Crew.FirstOrDefault(c => c.Job == "Director");
+            var director = directorCrew?.Name;
+            var directorTmdbId = directorCrew?.Id;
             var releaseYear = int.TryParse(details.ReleaseDate?.Split('-')[0], out var year) ? year : 0;
 
             logger.LogInformation("TMDB import succeeded: \"{Title}\" ({Year}), director={Director}", details.Title, releaseYear, director ?? "unknown");
@@ -208,6 +254,7 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                 .Take(10)
                 .Select(c => new CastMember
                 {
+                    TmdbPersonId = c.Id,
                     Name = c.Name,
                     Character = c.Character,
                     Order = c.Order,
@@ -221,6 +268,7 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                 ReleaseYear = releaseYear,
                 Genre = details.Genres.FirstOrDefault()?.Name,
                 Director = director,
+                DirectorTmdbId = directorTmdbId,
                 Rating = (decimal)Math.Round(details.VoteAverage, 1),
                 Synopsis = details.Overview,
                 PosterUrl = details.PosterPath != null ? $"{ImageBaseUrl}{details.PosterPath}" : null,

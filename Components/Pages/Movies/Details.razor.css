@@ -204,6 +204,19 @@
     padding: 1rem 1.25rem;
 }
 
+/* ── Person links ──────────────────────────────────────────── */
+.person-link {
+    color: #c8c8c8;
+    text-decoration: none;
+    border-bottom: 1px dotted #2a0000;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.person-link:hover {
+    color: #cc2200;
+    border-bottom-color: #cc2200;
+}
+
 /* ── Cast ──────────────────────────────────────────────────── */
 .cast-grid {
     display: flex;
@@ -214,6 +227,15 @@
 .cast-member {
     text-align: center;
     width: 72px;
+}
+
+a.cast-member:hover .cast-avatar,
+a.cast-member:hover .cast-avatar-placeholder {
+    border-color: #cc2200;
+}
+
+a.cast-member:hover .cast-name {
+    color: #cc2200;
 }
 
 .cast-avatar {

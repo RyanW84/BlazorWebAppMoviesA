@@ -28,6 +28,8 @@ namespace BlazorWebAppMovies.Models.Movie
 
         public int? TmdbId { get; set; }
 
+        public int? DirectorTmdbId { get; set; }
+
         public bool IsFavorite { get; set; }
 
         public List<CastMember> Cast { get; set; } = [];

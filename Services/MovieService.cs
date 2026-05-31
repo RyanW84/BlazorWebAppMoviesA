@@ -73,6 +73,26 @@ public class MovieService(MovieDbContext db) : IMovieService
         await db.SaveChangesAsync();
     }
 
+    public async Task BackfillPersonIdsAsync(int movieId, int? directorTmdbId, List<CastMember> cast)
+    {
+        var movie = await db.Movies.FindAsync(movieId);
+        if (movie is null) return;
+
+        if (directorTmdbId is not null && movie.DirectorTmdbId is null)
+            movie.DirectorTmdbId = directorTmdbId;
+
+        if (cast.Count > 0)
+        {
+            var existing = db.CastMembers.Where(c => c.MovieId == movieId);
+            db.CastMembers.RemoveRange(existing);
+            foreach (var member in cast)
+                member.MovieId = movieId;
+            db.CastMembers.AddRange(cast);
+        }
+
+        await db.SaveChangesAsync();
+    }
+
     public async Task<int?> GetRandomIdAsync()
     {
         var ids = await db.Movies.Select(m => m.Id).ToListAsync();

@@ -1,0 +1,196 @@
+@page "/person/{TmdbPersonId:int}"
+@inject ITmdbService TmdbService
+@inject IMovieService MovieService
+
+<PageTitle>@(person?.Name ?? "Personnel File")</PageTitle>
+
+@if (person is null)
+{
+    <div class="archive-terminal">
+        <div class="archive-header">
+            <span>SKYNET ARCHIVE // PERSONNEL FILE <span class="record-id">NOT FOUND</span></span>
+            <span class="header-status"><span class="status-dot-err">◉</span> ERROR</span>
+        </div>
+        <div class="person-body">
+            <p class="text-muted">// PERSONNEL RECORD NOT FOUND</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="archive-terminal">
+
+        <div class="archive-header">
+            <span>SKYNET ARCHIVE // PERSONNEL FILE <span class="record-id">#@TmdbPersonId.ToString("D7")</span></span>
+            <span class="header-status"><span class="status-dot">◉</span> ON FILE</span>
+        </div>
+
+        <div class="person-body">
+            <div class="row g-4">
+
+                <div class="col-md-2">
+                    <div class="person-photo-frame">
+                        @if (!string.IsNullOrEmpty(person.ProfilePath))
+                        {
+                            <img src="https://image.tmdb.org/t/p/w185@(person.ProfilePath)"
+                                 alt="@person.Name" class="person-photo" />
+                        }
+                        else
+                        {
+                            <div class="person-photo-placeholder">
+                                <span>@(person.Name.Length > 0 ? person.Name[0].ToString() : "?")</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="col-md-10">
+                    <div class="person-name">@person.Name</div>
+                    @if (!string.IsNullOrEmpty(person.KnownForDepartment))
+                    {
+                        <div class="person-dept">// @person.KnownForDepartment.ToUpper()</div>
+                    }
+                    @if (!string.IsNullOrEmpty(person.Biography))
+                    {
+                        <p class="person-bio mt-2">@(person.Biography.Length > 500 ? person.Biography[..500] + "…" : person.Biography)</p>
+                    }
+                    <div class="mt-3">
+                        <a href="/movies" class="btn btn-outline-secondary btn-sm">← ARCHIVES</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        @if (actingCredits.Count > 0)
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">APPEARANCES</div>
+                <div class="panel-body">
+                    <div class="filmography-grid">
+                        @foreach (var credit in actingCredits)
+                        {
+                            var year = credit.ReleaseDate?.Length >= 4 ? credit.ReleaseDate[..4] : null;
+                            var posterSrc = credit.PosterPath != null
+                                ? $"https://image.tmdb.org/t/p/w154{credit.PosterPath}"
+                                : null;
+
+                            @if (localIds.TryGetValue(credit.Id, out var localId))
+                            {
+                                <a href="/movies/@localId" class="film-card text-decoration-none">
+                                    @if (posterSrc is not null) { <img src="@posterSrc" alt="@credit.Title" class="film-poster" /> }
+                                    else { <div class="film-poster-placeholder">@credit.Title</div> }
+                                    <div class="film-title">@credit.Title</div>
+                                    @if (year is not null) { <div class="film-year">@year</div> }
+                                    @if (!string.IsNullOrEmpty(credit.Character)) { <div class="film-role">@credit.Character</div> }
+                                </a>
+                            }
+                            else
+                            {
+                                <div class="film-card film-card--unlinked">
+                                    @if (posterSrc is not null) { <img src="@posterSrc" alt="@credit.Title" class="film-poster" /> }
+                                    else { <div class="film-poster-placeholder">@credit.Title</div> }
+                                    <div class="film-title">@credit.Title</div>
+                                    @if (year is not null) { <div class="film-year">@year</div> }
+                                    @if (!string.IsNullOrEmpty(credit.Character)) { <div class="film-role">@credit.Character</div> }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (directingCredits.Count > 0)
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">DIRECTED WORKS</div>
+                <div class="panel-body">
+                    <div class="filmography-grid">
+                        @foreach (var credit in directingCredits)
+                        {
+                            var year = credit.ReleaseDate?.Length >= 4 ? credit.ReleaseDate[..4] : null;
+                            var posterSrc = credit.PosterPath != null
+                                ? $"https://image.tmdb.org/t/p/w154{credit.PosterPath}"
+                                : null;
+
+                            @if (localIds.TryGetValue(credit.Id, out var localId))
+                            {
+                                <a href="/movies/@localId" class="film-card text-decoration-none">
+                                    @if (posterSrc is not null) { <img src="@posterSrc" alt="@credit.Title" class="film-poster" /> }
+                                    else { <div class="film-poster-placeholder">@credit.Title</div> }
+                                    <div class="film-title">@credit.Title</div>
+                                    @if (year is not null) { <div class="film-year">@year</div> }
+                                </a>
+                            }
+                            else
+                            {
+                                <div class="film-card film-card--unlinked">
+                                    @if (posterSrc is not null) { <img src="@posterSrc" alt="@credit.Title" class="film-poster" /> }
+                                    else { <div class="film-poster-placeholder">@credit.Title</div> }
+                                    <div class="film-title">@credit.Title</div>
+                                    @if (year is not null) { <div class="film-year">@year</div> }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+    </div>
+}
+
+@code {
+    [Parameter] public int TmdbPersonId { get; set; }
+
+    private TmdbPersonDetails? person;
+    private List<TmdbPersonCastCredit> actingCredits = [];
+    private List<TmdbPersonCrewCredit> directingCredits = [];
+    private Dictionary<int, int> localIds = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var detailsTask = TmdbService.GetPersonDetailsAsync(TmdbPersonId);
+        var creditsTask = TmdbService.GetPersonMovieCreditsAsync(TmdbPersonId);
+        await Task.WhenAll(detailsTask, creditsTask);
+
+        person = detailsTask.Result;
+        var credits = creditsTask.Result;
+        if (credits is null) return;
+
+        // Acting: notable films, sorted by popularity (vote count)
+        actingCredits = credits.Cast
+            .Where(c => c.VoteCount >= 10 && !string.IsNullOrEmpty(c.ReleaseDate))
+            .OrderByDescending(c => c.VoteCount)
+            .Take(24)
+            .ToList();
+
+        // Directing: Director credits only, sorted by release date
+        directingCredits = credits.Crew
+            .Where(c => c.Job == "Director" && c.VoteCount >= 10 && !string.IsNullOrEmpty(c.ReleaseDate))
+            .OrderByDescending(c => c.ReleaseDate)
+            .DistinctBy(c => c.Id)
+            .ToList();
+
+        var allTmdbIds = actingCredits.Select(c => c.Id)
+            .Concat(directingCredits.Select(c => c.Id))
+            .Distinct()
+            .ToList();
+
+        localIds = await MovieService.GetLocalIdsByTmdbIdsAsync(allTmdbIds);
+
+        // Import any films not yet in the DB
+        var actingToImport = actingCredits.Where(c => !localIds.ContainsKey(c.Id)).Select(c => c.Id);
+        var directingToImport = directingCredits.Where(c => !localIds.ContainsKey(c.Id)).Select(c => c.Id);
+        var toImport = actingToImport.Concat(directingToImport).Distinct().ToList();
+
+        if (toImport.Count > 0)
+        {
+            var fetched = await Task.WhenAll(toImport.Select(id => TmdbService.ImportAsync(id)));
+            foreach (var movie in fetched.OfType<Movie>())
+                await MovieService.AddIfNotExistsAsync(movie);
+            localIds = await MovieService.GetLocalIdsByTmdbIdsAsync(allTmdbIds);
+        }
+    }
+}

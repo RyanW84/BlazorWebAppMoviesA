@@ -1,0 +1,172 @@
+/* ── Terminal chrome (mirrors Details.razor.css shared patterns) ── */
+.archive-terminal {
+    border: 1px solid #1e0000;
+    background: #080808;
+    overflow: hidden;
+}
+
+.archive-header {
+    background: #0d0000;
+    border-bottom: 1px solid #2a0000;
+    padding: 0.45rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.68rem;
+    color: #444;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.record-id { color: #cc2200; }
+
+.header-status {
+    color: #444;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+}
+
+.status-dot     { color: #22aa44; margin-right: 0.3rem; }
+.status-dot-err { color: #cc2200; margin-right: 0.3rem; }
+
+.terminal-panel { border-top: 1px solid #150000; }
+
+.panel-header {
+    background: #0d0000;
+    border-bottom: 1px solid #150000;
+    padding: 0.4rem 1.25rem;
+    font-size: 0.63rem;
+    color: #4a4a4a;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-header::before {
+    content: '▶';
+    color: #cc2200;
+    font-size: 0.5rem;
+}
+
+.panel-body { padding: 1rem 1.25rem; }
+
+/* ── Person header area ───────────────────────────────────────── */
+.person-body {
+    padding: 1.5rem;
+    border-bottom: 1px solid #150000;
+}
+
+.person-photo-frame {
+    border: 1px solid #2a0000;
+    overflow: hidden;
+    background: #0a0a0a;
+}
+
+.person-photo {
+    display: block;
+    width: 100%;
+    filter: saturate(0.7) contrast(1.05);
+}
+
+.person-photo-placeholder {
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cc2200;
+    font-size: 3rem;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.person-name {
+    font-family: 'Orbitron', 'Arial Narrow', sans-serif;
+    font-size: clamp(1.1rem, 3vw, 1.7rem);
+    color: #c8c8c8;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    text-shadow: 0 0 30px rgba(204, 34, 0, 0.12);
+}
+
+.person-dept {
+    font-size: 0.7rem;
+    color: #cc2200;
+    letter-spacing: 0.14em;
+    margin-top: 0.35rem;
+}
+
+.person-bio {
+    font-size: 0.82rem;
+    line-height: 1.75;
+    color: #777;
+    border-left: 2px solid #1e0000;
+    padding-left: 0.75rem;
+    margin: 0;
+}
+
+/* ── Filmography grid ─────────────────────────────────────────── */
+.filmography-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.film-card {
+    width: 90px;
+    cursor: default;
+}
+
+a.film-card:hover .film-poster {
+    border-color: #cc2200;
+    opacity: 1;
+}
+
+a.film-card:hover .film-title {
+    color: #c8c8c8;
+}
+
+.film-poster {
+    width: 90px;
+    height: 135px;
+    object-fit: cover;
+    display: block;
+    border: 1px solid #1c1c1c;
+    opacity: 0.75;
+    transition: border-color 0.15s, opacity 0.15s;
+}
+
+.film-poster-placeholder {
+    width: 90px;
+    height: 135px;
+    background: #0e0e0e;
+    border: 1px solid #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    color: #2e2e2e;
+    text-align: center;
+    padding: 4px;
+}
+
+.film-title {
+    font-size: 0.63rem;
+    color: #666;
+    margin-top: 0.3rem;
+    line-height: 1.3;
+    transition: color 0.15s;
+}
+
+.film-year {
+    font-size: 0.58rem;
+    color: #333;
+}
+
+.film-role {
+    font-size: 0.58rem;
+    color: #cc2200;
+    opacity: 0.7;
+    margin-top: 0.1rem;
+    line-height: 1.2;
+}

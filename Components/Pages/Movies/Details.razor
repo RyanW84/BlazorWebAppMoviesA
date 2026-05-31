@@ -69,7 +69,16 @@ else
                         <div class="field-row">
                             <span class="field-label">ARCHITECT</span>
                             <span class="field-dots"></span>
-                            <span class="field-value">@(movie.Director ?? "// UNKNOWN")</span>
+                            <span class="field-value">
+                                @if (movie.DirectorTmdbId is not null)
+                                {
+                                    <a href="/person/@movie.DirectorTmdbId" class="person-link">@(movie.Director ?? "// UNKNOWN")</a>
+                                }
+                                else
+                                {
+                                    @(movie.Director ?? "// UNKNOWN")
+                                }
+                            </span>
                         </div>
                         <div class="field-row">
                             <span class="field-label">RATING</span>
@@ -110,21 +119,42 @@ else
                     <div class="cast-grid">
                         @foreach (var member in movie.Cast)
                         {
-                            <div class="cast-member">
-                                @if (member.ProfileUrl is not null)
-                                {
-                                    <img src="@member.ProfileUrl" alt="@member.Name" class="cast-avatar" />
-                                }
-                                else
-                                {
-                                    <div class="cast-avatar-placeholder">@member.Name[0]</div>
-                                }
-                                <div class="cast-name">@member.Name</div>
-                                @if (!string.IsNullOrEmpty(member.Character))
-                                {
-                                    <div class="cast-character">@member.Character</div>
-                                }
-                            </div>
+                            @if (member.TmdbPersonId is not null)
+                            {
+                                <a href="/person/@member.TmdbPersonId" class="cast-member text-decoration-none">
+                                    @if (member.ProfileUrl is not null)
+                                    {
+                                        <img src="@member.ProfileUrl" alt="@member.Name" class="cast-avatar" />
+                                    }
+                                    else
+                                    {
+                                        <div class="cast-avatar-placeholder">@member.Name[0]</div>
+                                    }
+                                    <div class="cast-name">@member.Name</div>
+                                    @if (!string.IsNullOrEmpty(member.Character))
+                                    {
+                                        <div class="cast-character">@member.Character</div>
+                                    }
+                                </a>
+                            }
+                            else
+                            {
+                                <div class="cast-member">
+                                    @if (member.ProfileUrl is not null)
+                                    {
+                                        <img src="@member.ProfileUrl" alt="@member.Name" class="cast-avatar" />
+                                    }
+                                    else
+                                    {
+                                        <div class="cast-avatar-placeholder">@member.Name[0]</div>
+                                    }
+                                    <div class="cast-name">@member.Name</div>
+                                    @if (!string.IsNullOrEmpty(member.Character))
+                                    {
+                                        <div class="cast-character">@member.Character</div>
+                                    }
+                                </div>
+                            }
                         }
                     </div>
                 </div>
@@ -275,20 +305,29 @@ else
             var trailerTask = TmdbService.GetTrailerKeyAsync(tmdbId);
             var providersTask = TmdbService.GetWatchProvidersAsync(tmdbId);
             var recsTask = TmdbService.GetRecommendationsAsync(tmdbId);
-            // Fetch cast concurrently if not yet saved
-            var castTask = movie.Cast.Count == 0
-                ? TmdbService.FetchCastAsync(tmdbId)
-                : Task.FromResult(movie.Cast);
 
-            await Task.WhenAll(trailerTask, providersTask, recsTask, castTask);
+            // Fetch credits if cast is missing, cast lacks person IDs, or director ID is missing
+            bool needsCredits = movie.Cast.Count == 0
+                || movie.Cast.Any(c => c.TmdbPersonId is null)
+                || (movie.DirectorTmdbId is null && !string.IsNullOrEmpty(movie.Director));
+
+            Task<(List<CastMember> Cast, int? DirectorTmdbId)>? creditsTask = needsCredits
+                ? TmdbService.FetchCreditsAsync(tmdbId)
+                : null;
+
+            var tasks = new List<Task> { trailerTask, providersTask, recsTask };
+            if (creditsTask is not null) tasks.Add(creditsTask);
+            await Task.WhenAll(tasks);
+
             trailerKey = trailerTask.Result;
             watchProviders = providersTask.Result;
             recommendations = recsTask.Result;
 
-            if (movie.Cast.Count == 0 && castTask.Result.Count > 0)
+            if (creditsTask is not null)
             {
-                await MovieService.SaveCastAsync(movie.Id, castTask.Result);
-                movie.Cast = castTask.Result;
+                var (fetchedCast, directorTmdbId) = creditsTask.Result;
+                await MovieService.BackfillPersonIdsAsync(movie.Id, directorTmdbId, fetchedCast);
+                movie = await MovieService.GetByIdAsync(Id);
             }
 
             if (recommendations.Count > 0)
@@ -302,13 +341,9 @@ else
 
                 if (toImport.Count > 0)
                 {
-                    // Fetch all missing movies from TMDB in parallel
                     var fetched = await Task.WhenAll(toImport.Select(r => TmdbService.ImportAsync(r.Id)));
-
-                    // Write to DB sequentially — DbContext is not thread-safe
                     foreach (var imported in fetched.OfType<Movie>())
                         await MovieService.AddIfNotExistsAsync(imported);
-
                     recommendationLocalIds = await MovieService.GetLocalIdsByTmdbIdsAsync(tmdbIds);
                 }
             }
