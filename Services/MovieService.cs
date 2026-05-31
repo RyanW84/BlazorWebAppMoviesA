@@ -21,7 +21,8 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(
         string? search = null, string? genre = null, string sortBy = "title",
-        bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false)
+        bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false,
+        WatchStatus? watchStatus = null)
     {
         var query = db.Movies.AsNoTracking();
 
@@ -47,6 +48,9 @@ public class MovieService(MovieDbContext db) : IMovieService
 
         if (favoritesOnly)
             query = query.Where(m => m.IsFavorite);
+
+        if (watchStatus.HasValue)
+            query = query.Where(m => m.WatchStatus == watchStatus.Value);
 
         query = (sortBy.ToLower(), ascending) switch
         {
@@ -182,6 +186,16 @@ public class MovieService(MovieDbContext db) : IMovieService
         await db.Movies
             .Where(m => m.Id == id)
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsFavorite, m => !m.IsFavorite));
+
+    public async Task SetWatchStatusAsync(int id, WatchStatus status) =>
+        await db.Movies
+            .Where(m => m.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.WatchStatus, status));
+
+    public async Task SetPersonalRatingAsync(int id, int? rating) =>
+        await db.Movies
+            .Where(m => m.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.PersonalRating, rating));
 
     public async Task SaveCastAsync(int movieId, List<CastMember> cast) =>
         await ReplaceCastAsync(movieId, cast);

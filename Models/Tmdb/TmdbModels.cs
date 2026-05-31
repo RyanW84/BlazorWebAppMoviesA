@@ -49,6 +49,9 @@ namespace BlazorWebAppMovies.Models.Tmdb
         [JsonPropertyName("vote_average")]
         public double VoteAverage { get; set; }
 
+        [JsonPropertyName("runtime")]
+        public int? Runtime { get; set; }
+
         [JsonPropertyName("genres")]
         public List<TmdbGenre> Genres { get; set; } = [];
 

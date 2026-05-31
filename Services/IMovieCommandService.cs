@@ -5,6 +5,8 @@ namespace BlazorWebAppMovies.Services;
 public interface IMovieCommandService
 {
     Task ToggleFavoriteAsync(int id);
+    Task SetWatchStatusAsync(int id, WatchStatus status);
+    Task SetPersonalRatingAsync(int id, int? rating);
     Task SaveCastAsync(int movieId, List<CastMember> cast);
     Task BackfillPersonIdsAsync(int movieId, int? directorTmdbId, List<CastMember> cast);
     Task AddAsync(Movie movie);

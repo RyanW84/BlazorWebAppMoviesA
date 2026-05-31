@@ -1,4 +1,5 @@
 @page "/movies/{Id:int}"
+@rendermode InteractiveServer
 @inject IMovieQueryService   MovieQuery
 @inject IMovieCommandService MovieCommands
 @inject ITmdbCreditService   TmdbCredits
@@ -64,6 +65,14 @@ else
                             <span class="field-dots"></span>
                             <span class="field-value">@movie.ReleaseYear</span>
                         </div>
+                        @if (movie.RuntimeMinutes is int rt)
+                        {
+                            <div class="field-row">
+                                <span class="field-label">RUNTIME</span>
+                                <span class="field-dots"></span>
+                                <span class="field-value">@(rt / 60 > 0 ? $"{rt / 60}h " : "")@(rt % 60)m</span>
+                            </div>
+                        }
                         <div class="field-row">
                             <span class="field-label">CLASSIFICATION</span>
                             <span class="field-dots"></span>
@@ -84,9 +93,25 @@ else
                             </span>
                         </div>
                         <div class="field-row">
-                            <span class="field-label">RATING</span>
+                            <span class="field-label">TMDB RATING</span>
                             <span class="field-dots"></span>
                             <span class="field-value">@movie.Rating.ToString("F1") <span class="rating-max">/ 10</span></span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">MY RATING</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value">
+                                @for (var i = 1; i <= 5; i++)
+                                {
+                                    var star = i;
+                                    <button class="btn btn-link p-0 me-1" style="font-size:1.1rem;color:@(movie.PersonalRating.HasValue && movie.PersonalRating >= star ? "#f5c518" : "#555");"
+                                            @onclick="() => SetPersonalRating(star)" title="Rate @star/5">★</button>
+                                }
+                                @if (movie.PersonalRating.HasValue)
+                                {
+                                    <button class="btn btn-link p-0 ms-1 text-muted" style="font-size:0.75rem;" @onclick="() => SetPersonalRating(null)">clear</button>
+                                }
+                            </span>
                         </div>
                     </div>
 
@@ -109,6 +134,21 @@ else
                                 @(movie.IsFavorite ? "CLASSIFIED" : "CLASSIFY")
                             </button>
                         </form>
+                    </div>
+
+                    <div class="watch-status-bar mt-2">
+                        <span class="field-label me-2">STATUS</span>
+                        @foreach (var s in Enum.GetValues<WatchStatus>().Where(s => s != WatchStatus.None))
+                        {
+                            <button class="btn btn-sm @(movie.WatchStatus == s ? WatchStatusActiveClass(s) : "btn-outline-secondary") me-1"
+                                    @onclick="() => SetWatchStatus(s)">
+                                @WatchStatusLabel(s)
+                            </button>
+                        }
+                        @if (movie.WatchStatus != WatchStatus.None)
+                        {
+                            <button class="btn btn-sm btn-link text-muted p-0 ms-1" @onclick="() => SetWatchStatus(WatchStatus.None)">clear</button>
+                        }
                     </div>
                 </div>
 
@@ -176,4 +216,34 @@ else
         await MovieCommands.ToggleFavoriteAsync(movie.Id);
         movie.IsFavorite = !movie.IsFavorite;
     }
+
+    private async Task SetPersonalRating(int? rating)
+    {
+        if (movie is null) return;
+        await MovieCommands.SetPersonalRatingAsync(movie.Id, rating);
+        movie.PersonalRating = rating;
+    }
+
+    private async Task SetWatchStatus(WatchStatus status)
+    {
+        if (movie is null) return;
+        await MovieCommands.SetWatchStatusAsync(movie.Id, status);
+        movie.WatchStatus = status;
+    }
+
+    private static string WatchStatusLabel(WatchStatus s) => s switch
+    {
+        WatchStatus.WantToWatch => "WANT TO WATCH",
+        WatchStatus.Watched     => "WATCHED",
+        WatchStatus.Rewatching  => "REWATCHING",
+        _                       => s.ToString().ToUpper(),
+    };
+
+    private static string WatchStatusActiveClass(WatchStatus s) => s switch
+    {
+        WatchStatus.WantToWatch => "btn-info",
+        WatchStatus.Watched     => "btn-success",
+        WatchStatus.Rewatching  => "btn-warning",
+        _                       => "btn-secondary",
+    };
 }

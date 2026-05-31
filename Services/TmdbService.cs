@@ -145,6 +145,7 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                 Synopsis       = details.Overview,
                 PosterUrl      = TmdbConstants.PosterUrl(details.PosterPath),
                 TmdbId         = details.Id,
+                RuntimeMinutes = details.Runtime,
                 Cast           = MapCastMembers(details.Credits.Cast)
             };
         }

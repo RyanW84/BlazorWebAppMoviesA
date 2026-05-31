@@ -25,6 +25,13 @@
             <option value="@g">@g</option>
         }
     </select>
+    <select class="form-select" style="width:auto" value="@selectedWatchStatus" @onchange="OnWatchStatusChange">
+        <option value="">All statuses</option>
+        <option value="WantToWatch">Want to Watch</option>
+        <option value="Watched">Watched</option>
+        <option value="Rewatching">Rewatching</option>
+        <option value="None">No status</option>
+    </select>
     <select class="form-select" style="width:auto" value="@pageSize" @onchange="OnPageSizeChange">
         <option value="25">25 / page</option>
         <option value="50">50 / page</option>
@@ -82,7 +89,15 @@ else
                     </td>
                     <td><a href="/movies/@movie.Id" class="text-decoration-none text-body fw-semibold">@movie.Title</a></td>
                     <td>@movie.ReleaseYear</td>
-                    <td>@movie.Rating.ToString("F1")</td>
+                    <td>
+                        @movie.Rating.ToString("F1")
+                        @if (movie.PersonalRating.HasValue)
+                        {
+                            <span class="ms-1" style="color:#f5c518;font-size:0.8rem;" title="My rating: @movie.PersonalRating/5">
+                                @(new string('★', movie.PersonalRating.Value))
+                            </span>
+                        }
+                    </td>
                     <td>@movie.Genre</td>
                     <td>@movie.Director</td>
                     <td class="text-end">
@@ -124,18 +139,20 @@ else
 }
 
 @code {
-    [Parameter]
-    [SupplyParameterFromQuery(Name = "favorites")]
-    public bool FavoritesParam { get; set; }
-
-    [Parameter]
-    [SupplyParameterFromQuery(Name = "search")]
-    public string? SearchParam { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "search")]   public string? SearchParam      { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "genre")]    public string? GenreParam        { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "status")]   public string? StatusParam       { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "sort")]     public string? SortParam         { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "asc")]      public bool?   AscParam          { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "page")]     public int?    PageParam         { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "size")]     public int?    SizeParam         { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "favorites")]public bool    FavoritesParam    { get; set; }
 
     private List<Movie> movies = [];
     private List<string> genres = [];
     private string searchTerm = "";
     private string selectedGenre = "";
+    private string selectedWatchStatus = "";
     private string sortBy = "title";
     private bool ascending = true;
     private bool favoritesOnly = false;
@@ -146,22 +163,46 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        favoritesOnly = FavoritesParam;
-        searchTerm = SearchParam ?? "";
+        searchTerm         = SearchParam ?? "";
+        selectedGenre      = GenreParam  ?? "";
+        selectedWatchStatus= StatusParam ?? "";
+        sortBy             = SortParam   ?? "title";
+        ascending          = AscParam    ?? true;
+        currentPage        = PageParam   ?? 1;
+        pageSize           = SizeParam   ?? 25;
+        favoritesOnly      = FavoritesParam;
         genres = await MovieService.GetGenresAsync();
         await LoadMovies();
     }
 
     private async Task LoadMovies()
     {
-        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly);
+        WatchStatus? watchStatusFilter = Enum.TryParse<WatchStatus>(selectedWatchStatus, out var parsed) ? parsed : null;
+        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter);
         movies = result.Movies;
         totalCount = result.TotalCount;
+    }
+
+    private void PushUrl()
+    {
+        var url = Nav.GetUriWithQueryParameters("/movies", new Dictionary<string, object?>
+        {
+            ["search"]    = string.IsNullOrEmpty(searchTerm)          ? null : searchTerm,
+            ["genre"]     = string.IsNullOrEmpty(selectedGenre)        ? null : selectedGenre,
+            ["status"]    = string.IsNullOrEmpty(selectedWatchStatus)  ? null : selectedWatchStatus,
+            ["sort"]      = sortBy == "title"                          ? null : sortBy,
+            ["asc"]       = ascending                                  ? null : (object?)false,
+            ["page"]      = currentPage == 1                           ? null : (object?)currentPage,
+            ["size"]      = pageSize == 25                             ? null : (object?)pageSize,
+            ["favorites"] = favoritesOnly                              ? (object?)true : null,
+        });
+        Nav.NavigateTo(url, replace: true);
     }
 
     private async Task ResetAndReload()
     {
         currentPage = 1;
+        PushUrl();
         await LoadMovies();
     }
 
@@ -177,6 +218,12 @@ else
         await ResetAndReload();
     }
 
+    private async Task OnWatchStatusChange(ChangeEventArgs e)
+    {
+        selectedWatchStatus = e.Value?.ToString() ?? "";
+        await ResetAndReload();
+    }
+
     private async Task SetSort(string column)
     {
         ascending = sortBy == column ? !ascending : true;
@@ -188,6 +235,7 @@ else
     {
         if (page < 1 || page > totalPages) return;
         currentPage = page;
+        PushUrl();
         await LoadMovies();
     }
 

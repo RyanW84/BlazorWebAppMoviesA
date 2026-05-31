@@ -2,6 +2,7 @@
 using BlazorWebAppMovies.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,9 +10,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlazorWebAppMovies.Migrations
 {
     [DbContext(typeof(MovieDbContext))]
-    partial class MovieDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260531211128_AddWatchStatus")]
+    partial class AddWatchStatus
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.5");
@@ -77,9 +80,6 @@ namespace BlazorWebAppMovies.Migrations
                     b.Property<bool>("IsFavorite")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("PersonalRating")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("PosterUrl")
                         .HasColumnType("TEXT");
 
@@ -87,9 +87,6 @@ namespace BlazorWebAppMovies.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("ReleaseYear")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("RuntimeMinutes")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Synopsis")

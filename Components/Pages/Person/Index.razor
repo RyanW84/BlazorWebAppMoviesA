@@ -1,4 +1,5 @@
 @page "/person/{TmdbPersonId:int}"
+@rendermode InteractiveServer
 @inject ITmdbPersonService       TmdbPerson
 @inject IMovieImportOrchestrator Importer
 
@@ -85,12 +86,18 @@ else
                             }
                             else
                             {
+                                var tmdbId = credit.Id;
                                 <div class="film-card film-card--unlinked">
                                     @if (posterSrc is not null) { <img src="@posterSrc" alt="@credit.Title" class="film-poster" /> }
                                     else { <div class="film-poster-placeholder">@credit.Title</div> }
                                     <div class="film-title">@credit.Title</div>
                                     @if (year is not null) { <div class="film-year">@year</div> }
                                     @if (!string.IsNullOrEmpty(credit.Character)) { <div class="film-role">@credit.Character</div> }
+                                    <button class="btn btn-sm btn-outline-primary film-import-btn mt-1"
+                                            disabled="@importingIds.Contains(tmdbId)"
+                                            @onclick="() => ImportFilm(tmdbId)">
+                                        @(importingIds.Contains(tmdbId) ? "…" : "+ Import")
+                                    </button>
                                 </div>
                             }
                         }
@@ -121,11 +128,17 @@ else
                             }
                             else
                             {
+                                var tmdbId = credit.Id;
                                 <div class="film-card film-card--unlinked">
                                     @if (posterSrc is not null) { <img src="@posterSrc" alt="@credit.Title" class="film-poster" /> }
                                     else { <div class="film-poster-placeholder">@credit.Title</div> }
                                     <div class="film-title">@credit.Title</div>
                                     @if (year is not null) { <div class="film-year">@year</div> }
+                                    <button class="btn btn-sm btn-outline-primary film-import-btn mt-1"
+                                            disabled="@importingIds.Contains(tmdbId)"
+                                            @onclick="() => ImportFilm(tmdbId)">
+                                        @(importingIds.Contains(tmdbId) ? "…" : "+ Import")
+                                    </button>
                                 </div>
                             }
                         }
@@ -141,9 +154,10 @@ else
     [Parameter] public int TmdbPersonId { get; set; }
 
     private TmdbPersonDetails? person;
-    private List<TmdbPersonCastCredit>  actingCredits   = [];
+    private List<TmdbPersonCastCredit>  actingCredits    = [];
     private List<TmdbPersonCrewCredit>  directingCredits = [];
     private Dictionary<int, int>        localIds         = [];
+    private HashSet<int>                importingIds     = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -158,7 +172,6 @@ else
         actingCredits = credits.Cast
             .Where(c => c.VoteCount >= TmdbConstants.MinVoteCount && !string.IsNullOrEmpty(c.ReleaseDate))
             .OrderByDescending(c => c.VoteCount)
-            .Take(TmdbConstants.MaxActingCredits)
             .ToList();
 
         directingCredits = credits.Crew
@@ -172,5 +185,14 @@ else
             .Distinct();
 
         localIds = await Importer.EnsureLocalAsync(allTmdbIds);
+    }
+
+    private async Task ImportFilm(int tmdbId)
+    {
+        importingIds.Add(tmdbId);
+        var result = await Importer.EnsureLocalAsync([tmdbId]);
+        importingIds.Remove(tmdbId);
+        if (result.TryGetValue(tmdbId, out var localId))
+            localIds[tmdbId] = localId;
     }
 }

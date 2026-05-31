@@ -32,6 +32,13 @@ namespace BlazorWebAppMovies.Models.Movie
 
         public bool IsFavorite { get; set; }
 
+        public WatchStatus WatchStatus { get; set; } = WatchStatus.None;
+
+        [Range(1, 5)]
+        public int? PersonalRating { get; set; }
+
+        public int? RuntimeMinutes { get; set; }
+
         public bool CastBackfilled { get; set; }
 
         public List<CastMember> Cast { get; set; } = [];
