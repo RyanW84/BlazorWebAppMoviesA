@@ -1,64 +1,84 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 ```bash
-# Run the app (HTTP)
-dotnet run --launch-profile http
-
-# Run the app (HTTPS)
-dotnet run --launch-profile https
-
-# Build
+dotnet run --launch-profile http          # http://localhost:5176
+dotnet run --launch-profile https         # https://localhost:7212
 dotnet build
-
-# Add an EF Core migration
-dotnet ef migrations add <MigrationName>
-
-# Apply migrations to the database
+dotnet ef migrations add <Name>
 dotnet ef database update
-
-# Scaffold CRUD pages for a model
-dotnet aspnet-codegenerator razorpage -m <ModelName> -dc <DbContextName> --relativeFolderPath Components/Pages/<ModelName> --namespaceName BlazorWebAppMovies.Components.Pages.<ModelName> -sqlite
+dotnet aspnet-codegenerator razorpage -m <Model> -dc <DbContext> --relativeFolderPath Components/Pages/<Model> --namespaceName BlazorWebAppMovies.Components.Pages.<Model> -sqlite
 ```
 
-Dev server runs at `http://localhost:5176` (HTTP) or `https://localhost:7212` (HTTPS).
+## Config
 
-## TMDB API Key
-
-Add your TMDB API key to `appsettings.Development.json` under `Tmdb:ApiKey`. Get a free key at [themoviedb.org](https://www.themoviedb.org/settings/api). The `appsettings.json` connection string (`Data Source=movies.db`) creates a local SQLite file at the project root on first run — no migration needed, `EnsureCreated()` handles it.
+- TMDB API key → `appsettings.Development.json` under `Tmdb:ApiKey`
+- SQLite DB → `Data Source=movies.db` in `appsettings.json`; `EnsureCreated()` handles schema on first run
 
 ## Architecture
 
-This is a **Blazor Web App** targeting .NET 10 with **Interactive Server** render mode. EF Core uses SQLite (connection string in `appsettings.json`).
+**.NET 10 Blazor Web App**, Interactive Server render mode, EF Core + SQLite.
 
-**Render pipeline:** `App.razor` is the root HTML document → `<Routes />` → `Router` matches URLs to pages under `Components/Pages/`. All pages default to `MainLayout`.
+**Render pipeline:** `App.razor` → `<Routes />` → pages under `Components/Pages/` (default: `MainLayout`)
 
-**Interactivity model:** Static SSR is the default. Pages that need user interaction (search, forms, button clicks) opt in with `@rendermode InteractiveServer`. Read-only pages like `Details.razor` stay as static SSR.
+**Interactivity:** Static SSR by default. Add `@rendermode InteractiveServer` only for pages requiring user interaction (search, forms, clicks).
 
-**Service layer:**
+**Services (DI):**
 
-- `IMovieService` / `MovieService` — all local DB operations (search, sort, CRUD). Registered as scoped.
-- `ITmdbService` / `TmdbService` — TMDB API v3 client. Searches movies and imports full details (title, year, genre, director, rating, synopsis, poster URL) via `append_to_response=credits`. Registered as a typed `HttpClient`.
+- `IMovieService` / `MovieService` — DB CRUD, search, sort (scoped)
+- `ITmdbService` / `TmdbService` — TMDB API v3; `SearchAsync()` + `ImportAsync(tmdbId)` via `append_to_response=credits` (typed `HttpClient`)
 
-**Data flow for movie import:** `Create.razor` calls `ITmdbService.SearchAsync()` to show TMDB results, then `ImportAsync(tmdbId)` fetches full details + credits in one request and maps them into a `Movie` entity. Properties are copied onto the existing form model (not replacing the reference) to keep `EditForm`'s `EditContext` valid.
+**Import flow:** `Create.razor` → `SearchAsync()` → `ImportAsync()` → map to `Movie` entity, copy properties onto existing form model to preserve `EditContext`.
 
-**Search and sort:** `MovieService.GetAllAsync()` accepts optional `search` (filters title and director), `sortBy` (`"title"` / `"year"` / `"rating"`), and `ascending` — all applied as EF Core LINQ before hitting the database.
+**Search/sort:** `MovieService.GetAllAsync(search, sortBy, ascending)` — all filtering done via EF Core LINQ.
 
-**Key directories:**
+**Key paths:**
 
-- `Components/Pages/Movies/` — five pages: `Index` (list + search + sort), `Details`, `Create` (with TMDB search), `Edit`, `Delete`
-- `Models/Movie/` — `Movie.cs` entity with data annotations
-- `Models/Tmdb/` — DTOs for TMDB API responses (`TmdbSearchResponse`, `TmdbMovieDetails`, etc.)
-- `Data/` — `MovieDbContext`
-- `Services/` — service interfaces and implementations
+| Path | Purpose |
+| --- | --- |
+| `Components/Pages/Movies/` | Index, Details, Create, Edit, Delete |
+| `Models/Movie/Movie.cs` | Entity + data annotations |
+| `Models/Tmdb/` | TMDB DTOs |
+| `Data/MovieDbContext` | EF Core context |
+| `Services/` | Interfaces + implementations |
 
-**Static assets:** Managed via `MapStaticAssets()`, referenced with `@Assets["..."]` for fingerprinted URLs. CSS isolation via `.razor.css` files scoped per component.
+**Static assets:** `MapStaticAssets()` + `@Assets["..."]` for fingerprinted URLs. CSS isolation via `.razor.css` per component.
 
-**Error handling:** Non-development environments use `/Error` for exceptions and `/not-found` for 404s via `UseStatusCodePagesWithReExecute`.
+**Errors:** `/Error` (exceptions) + `/not-found` (404) via `UseStatusCodePagesWithReExecute` in non-dev.
+
+## Coding Standards
+
+### SOLID
+
+- **Single Responsibility** — one class/service per concern; pages handle UI state only, never embed DB logic inline
+- **Open/Closed** — extend via new implementations behind existing interfaces, not by modifying them
+- **Liskov Substitution** — interface contracts must be fully honoured by every implementation
+- **Interface Segregation** — keep `IMovieService` / `ITmdbService` focused; split if unrelated operations accumulate
+- **Dependency Inversion** — depend on `IMovieService` / `ITmdbService`, never on concrete classes
+
+### DRY
+
+Extract any logic used in more than one place into a shared service, helper, or component. No duplicated query predicates, markup blocks, or mapping code.
+
+### OOP
+
+Prefer composition over inheritance. Use DTOs for TMDB responses and entities for persistence — never mix the two.
+
+### Design Patterns
+
+- **Repository-style service layer** (`IMovieService`) — all DB access stays behind this boundary
+- **Strategy** — search/sort parameters passed into `GetAllAsync`; add new sort strategies there, not in pages
+- **Mapper** — TMDB → `Movie` mapping lives in `ImportAsync`, nowhere else
+
+### No Monoliths
+
+If a `.razor` page or service method exceeds ~80–100 lines of logic, extract components or helper methods.
+
+### Eliminate Redundancy
+
+Before adding code, check whether the service layer already covers the need. Remove dead code, unused parameters, and obsolete DTOs on sight.
 
 ## Codacy Integration
 
-A Codacy MCP server integration is configured in [.github/instructions/codacy.instructions.md](.github/instructions/codacy.instructions.md). After editing any file, run `codacy_cli_analyze` via the Codacy MCP tool for that file. After any package manager operation, run it with `tool: "trivy"` for security scanning.
+After editing any file, run `codacy_cli_analyze` via the Codacy MCP tool. After package manager operations, run it with `tool: "trivy"`. Full config: [.github/instructions/codacy.instructions.md](.github/instructions/codacy.instructions.md).
