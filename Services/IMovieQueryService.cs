@@ -10,4 +10,6 @@ public interface IMovieQueryService
     Task<(int TotalMovies, int FavoriteMovies)> GetStatsAsync();
     Task<Movie?> GetByIdAsync(int id);
     Task<Dictionary<int, int>> GetLocalIdsByTmdbIdsAsync(IEnumerable<int> tmdbIds);
+    Task<List<PersonSummary>> GetDirectorsAsync(string? search = null);
+    Task<List<PersonSummary>> GetCastAsync(string? search = null);
 }

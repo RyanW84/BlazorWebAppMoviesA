@@ -94,6 +94,40 @@ public class MovieService(MovieDbContext db) : IMovieService
             .ToDictionaryAsync(m => m.TmdbId!.Value, m => m.Id);
     }
 
+    public async Task<List<PersonSummary>> GetDirectorsAsync(string? search = null)
+    {
+        var query = db.Movies.Where(m => !string.IsNullOrEmpty(m.Director));
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(m => m.Director!.ToLower().Contains(search.ToLower()));
+
+        // Project to anonymous type (EF Core can translate this), then map to record in memory
+        var rows = await query
+            .GroupBy(m => new { m.Director, m.DirectorTmdbId })
+            .Select(g => new { Name = g.Key.Director!, TmdbId = g.Key.DirectorTmdbId, Count = g.Count() })
+            .OrderBy(g => g.Name)
+            .ToListAsync();
+
+        return rows.Select(r => new PersonSummary(r.Name, r.TmdbId, r.Count)).ToList();
+    }
+
+    public async Task<List<PersonSummary>> GetCastAsync(string? search = null)
+    {
+        var query = db.CastMembers.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(c => c.Name.ToLower().Contains(search.ToLower()));
+
+        // Project to anonymous type (EF Core can translate this), then map to record in memory
+        var rows = await query
+            .GroupBy(c => new { c.Name, c.TmdbPersonId })
+            .Select(g => new { Name = g.Key.Name, TmdbId = g.Key.TmdbPersonId, Count = g.Count() })
+            .OrderBy(g => g.Name)
+            .ToListAsync();
+
+        return rows.Select(r => new PersonSummary(r.Name, r.TmdbId, r.Count)).ToList();
+    }
+
     // ── IMovieCommandService ─────────────────────────────────────────────────
 
     public async Task ToggleFavoriteAsync(int id)

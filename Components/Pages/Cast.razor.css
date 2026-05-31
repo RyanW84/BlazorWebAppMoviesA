@@ -1,0 +1,66 @@
+.index-toolbar {
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #150000;
+    background: #0a0a0a;
+}
+
+.index-search {
+    max-width: 320px;
+}
+
+.index-empty {
+    padding: 2rem 1.25rem;
+    font-size: 0.72rem;
+    color: #333;
+    letter-spacing: 0.12em;
+}
+
+.index-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1px;
+    background: #100000;
+    border-top: 1px solid #150000;
+}
+
+.index-card {
+    background: #080808;
+    padding: 0.65rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    transition: background-color 0.12s;
+}
+
+.index-card:hover {
+    background: #0e0000;
+}
+
+.index-name {
+    font-size: 0.82rem;
+    color: #c8c8c8;
+    text-decoration: none;
+    border-bottom: 1px dotted #2a0000;
+    transition: color 0.12s, border-color 0.12s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.index-name:hover {
+    color: #cc2200;
+    border-bottom-color: #cc2200;
+}
+
+.index-name--unlinked {
+    border-bottom: none;
+    opacity: 0.6;
+}
+
+.index-count {
+    font-size: 0.6rem;
+    color: #333;
+    letter-spacing: 0.1em;
+    flex-shrink: 0;
+}

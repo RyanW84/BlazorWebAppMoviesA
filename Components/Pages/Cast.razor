@@ -1,0 +1,60 @@
+@page "/cast"
+@rendermode InteractiveServer
+@inject IMovieQueryService MovieQuery
+
+<PageTitle>Cast</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // PERSONNEL INDEX</span>
+        <span class="header-status"><span class="status-dot">◉</span> @cast.Count RECORDS</span>
+    </div>
+
+    <div class="index-toolbar">
+        <input class="form-control form-control-sm index-search"
+               value="@search"
+               @oninput="OnSearch"
+               placeholder="Search personnel…" />
+    </div>
+
+    @if (cast.Count == 0)
+    {
+        <div class="index-empty">// NO RECORDS MATCH QUERY</div>
+    }
+    else
+    {
+        <div class="index-grid">
+            @foreach (var p in cast)
+            {
+                <div class="index-card">
+                    @if (p.TmdbPersonId is not null)
+                    {
+                        <a href="/person/@p.TmdbPersonId" class="index-name">@p.Name</a>
+                    }
+                    else
+                    {
+                        <span class="index-name index-name--unlinked">@p.Name</span>
+                    }
+                    <span class="index-count">@p.MovieCount film@(p.MovieCount == 1 ? "" : "s")</span>
+                </div>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<PersonSummary> cast = [];
+    private string search = "";
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task OnSearch(ChangeEventArgs e)
+    {
+        search = e.Value?.ToString() ?? "";
+        await Load();
+    }
+
+    private async Task Load() => cast = await MovieQuery.GetCastAsync(search);
+}

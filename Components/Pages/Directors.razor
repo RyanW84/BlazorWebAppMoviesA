@@ -1,0 +1,60 @@
+@page "/directors"
+@rendermode InteractiveServer
+@inject IMovieQueryService MovieQuery
+
+<PageTitle>Directors</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // ARCHITECT INDEX</span>
+        <span class="header-status"><span class="status-dot">◉</span> @directors.Count RECORDS</span>
+    </div>
+
+    <div class="index-toolbar">
+        <input class="form-control form-control-sm index-search"
+               value="@search"
+               @oninput="OnSearch"
+               placeholder="Search architects…" />
+    </div>
+
+    @if (directors.Count == 0)
+    {
+        <div class="index-empty">// NO RECORDS MATCH QUERY</div>
+    }
+    else
+    {
+        <div class="index-grid">
+            @foreach (var d in directors)
+            {
+                <div class="index-card">
+                    @if (d.TmdbPersonId is not null)
+                    {
+                        <a href="/person/@d.TmdbPersonId" class="index-name">@d.Name</a>
+                    }
+                    else
+                    {
+                        <a href="/movies?search=@Uri.EscapeDataString(d.Name)" class="index-name index-name--unlinked">@d.Name</a>
+                    }
+                    <span class="index-count">@d.MovieCount film@(d.MovieCount == 1 ? "" : "s")</span>
+                </div>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<PersonSummary> directors = [];
+    private string search = "";
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task OnSearch(ChangeEventArgs e)
+    {
+        search = e.Value?.ToString() ?? "";
+        await Load();
+    }
+
+    private async Task Load() => directors = await MovieQuery.GetDirectorsAsync(search);
+}
