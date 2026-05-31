@@ -6,204 +6,264 @@
 
 @if (movie is null)
 {
-    <p>Movie not found.</p>
+    <div class="archive-terminal">
+        <div class="archive-header">
+            <span>SKYNET ARCHIVE // FILE RECORD <span class="record-id">NOT FOUND</span></span>
+            <span class="header-status"><span class="status-dot-err">◉</span> ERROR</span>
+        </div>
+        <div class="archive-body">
+            <p class="text-muted">// RECORD NOT FOUND IN DATABASE</p>
+        </div>
+    </div>
 }
 else
 {
-    <div class="row g-4">
-        <div class="col-md-3">
-            @if (!string.IsNullOrEmpty(movie.PosterUrl))
-            {
-                <img src="@movie.PosterUrl" class="img-fluid rounded shadow" alt="@movie.Title poster" />
-            }
-            else
-            {
-                <div class="bg-secondary rounded d-flex align-items-center justify-content-center" style="height:300px;color:white;">No poster</div>
-            }
-        </div>
-        <div class="col-md-9">
-            <h1>@movie.Title</h1>
-            <dl class="row mt-3">
-                <dt class="col-sm-3">Year</dt>
-                <dd class="col-sm-9">@movie.ReleaseYear</dd>
-                <dt class="col-sm-3">Genre</dt>
-                <dd class="col-sm-9">@(movie.Genre ?? "—")</dd>
-                <dt class="col-sm-3">Director</dt>
-                <dd class="col-sm-9">@(movie.Director ?? "—")</dd>
-                <dt class="col-sm-3">Rating</dt>
-                <dd class="col-sm-9">@movie.Rating.ToString("F1") / 10</dd>
-            </dl>
-            @if (!string.IsNullOrEmpty(movie.Synopsis))
-            {
-                <p class="mt-2">@movie.Synopsis</p>
-            }
+    <div class="archive-terminal">
 
-            @if (movie.Cast.Count > 0)
-            {
-                <div class="mt-3">
-                    <h5>Cast</h5>
-                    <div class="d-flex flex-wrap gap-3">
+        <div class="archive-header">
+            <span>SKYNET ARCHIVE // FILE RECORD <span class="record-id">#@movie.Id.ToString("D5")</span></span>
+            <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+        </div>
+
+        <div class="archive-body">
+            <div class="row g-4">
+
+                <div class="col-md-3">
+                    <div class="poster-frame">
+                        @if (!string.IsNullOrEmpty(movie.PosterUrl))
+                        {
+                            <img src="@movie.PosterUrl" alt="@movie.Title poster" class="poster-img" />
+                            @if (movie.TmdbId is not null)
+                            {
+                                <div class="poster-overlay">TMDB: @movie.TmdbId.Value.ToString("D7")</div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="poster-placeholder">
+                                <span>// NO VISUAL</span>
+                                <span>// DATA</span>
+                            </div>
+                        }
+                    </div>
+                    @if (movie.IsFavorite)
+                    {
+                        <div class="classified-badge mt-2">◈ CLASSIFIED</div>
+                    }
+                </div>
+
+                <div class="col-md-9">
+                    <div class="archive-title">@movie.Title</div>
+
+                    <div class="field-grid mt-3">
+                        <div class="field-row">
+                            <span class="field-label">YEAR</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value">@movie.ReleaseYear</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">CLASSIFICATION</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value">@(movie.Genre ?? "// UNKNOWN")</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">ARCHITECT</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value">@(movie.Director ?? "// UNKNOWN")</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">RATING</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value">@movie.Rating.ToString("F1") <span class="rating-max">/ 10</span></span>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(movie.Synopsis))
+                    {
+                        <div class="synopsis-block mt-3">
+                            <div class="synopsis-header">// SYNOPSIS</div>
+                            <p class="synopsis-text">@movie.Synopsis</p>
+                        </div>
+                    }
+
+                    <div class="action-bar">
+                        <a href="/movies" class="btn btn-outline-secondary btn-sm">← BACK</a>
+                        <a href="/movies/@movie.Id/edit" class="btn btn-primary btn-sm">EDIT RECORD</a>
+                        <a href="/movies/@movie.Id/delete" class="btn btn-danger btn-sm">DELETE</a>
+                        <form method="post" @formname="toggle-favorite" @onsubmit="ToggleFavorite" class="d-inline">
+                            <AntiforgeryToken />
+                            <button type="submit" class="btn btn-sm @(movie.IsFavorite ? "btn-danger" : "btn-outline-danger")">
+                                ♥ @(movie.IsFavorite ? "CLASSIFIED" : "CLASSIFY")
+                            </button>
+                        </form>
+                        @if (movie.TmdbId is not null && movie.Cast.Count == 0)
+                        {
+                            <form method="post" @formname="load-cast" @onsubmit="LoadCast" class="d-inline">
+                                <AntiforgeryToken />
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">LOAD PERSONNEL</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        @if (movie.Cast.Count > 0)
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">PERSONNEL DATABASE</div>
+                <div class="panel-body">
+                    <div class="cast-grid">
                         @foreach (var member in movie.Cast)
                         {
-                            <div class="text-center" style="width:80px;">
+                            <div class="cast-member">
                                 @if (member.ProfileUrl is not null)
                                 {
-                                    <img src="@member.ProfileUrl" alt="@member.Name"
-                                         style="width:64px;height:64px;object-fit:cover;border-radius:50%;" />
+                                    <img src="@member.ProfileUrl" alt="@member.Name" class="cast-avatar" />
                                 }
                                 else
                                 {
-                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto"
-                                         style="width:64px;height:64px;color:white;font-size:1.2rem;">
-                                        @member.Name[0]
-                                    </div>
+                                    <div class="cast-avatar-placeholder">@member.Name[0]</div>
                                 }
-                                <small class="d-block mt-1 fw-semibold" style="font-size:0.7rem;line-height:1.2;">@member.Name</small>
+                                <div class="cast-name">@member.Name</div>
                                 @if (!string.IsNullOrEmpty(member.Character))
                                 {
-                                    <small class="text-muted" style="font-size:0.65rem;">@member.Character</small>
+                                    <div class="cast-character">@member.Character</div>
                                 }
                             </div>
                         }
                     </div>
                 </div>
-            }
-
-            <div class="d-flex gap-2 mt-3 align-items-center">
-                <a href="/movies" class="btn btn-outline-secondary">Back</a>
-                <a href="/movies/@movie.Id/edit" class="btn btn-primary">Edit</a>
-                <a href="/movies/@movie.Id/delete" class="btn btn-danger">Delete</a>
-                <form method="post" @formname="toggle-favorite" @onsubmit="ToggleFavorite">
-                    <AntiforgeryToken />
-                    <button type="submit" class="btn btn-sm @(movie.IsFavorite ? "btn-danger" : "btn-outline-danger")" title="@(movie.IsFavorite ? "Remove from favorites" : "Add to favorites")">
-                        &#9829; @(movie.IsFavorite ? "Favorited" : "Favorite")
-                    </button>
-                </form>
-                @if (movie.TmdbId is not null && movie.Cast.Count == 0)
-                {
-                    <form method="post" @formname="load-cast" @onsubmit="LoadCast">
-                        <AntiforgeryToken />
-                        <button type="submit" class="btn btn-outline-secondary btn-sm">Load cast</button>
-                    </form>
-                }
             </div>
-        </div>
-    </div>
+        }
 
-    @if (watchProviders is not null && (watchProviders.Flatrate.Count > 0 || watchProviders.Rent.Count > 0 || watchProviders.Buy.Count > 0))
-    {
-        <div class="mt-4">
-            <h5>Where to Watch</h5>
-            @if (watchProviders.Flatrate.Count > 0)
-            {
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <small class="text-muted me-1" style="width:3.5rem;">Stream</small>
-                    @foreach (var p in watchProviders.Flatrate.OrderBy(p => p.DisplayPriority).Take(8))
+        @if (watchProviders is not null && (watchProviders.Flatrate.Count > 0 || watchProviders.Rent.Count > 0 || watchProviders.Buy.Count > 0))
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">DISTRIBUTION NETWORK</div>
+                <div class="panel-body">
+                    @if (watchProviders.Flatrate.Count > 0)
                     {
-                        <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
-                             alt="@p.Name" title="@p.Name"
-                             style="width:36px;height:36px;border-radius:6px;" />
-                    }
-                </div>
-            }
-            @if (watchProviders.Rent.Count > 0)
-            {
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <small class="text-muted me-1" style="width:3.5rem;">Rent</small>
-                    @foreach (var p in watchProviders.Rent.OrderBy(p => p.DisplayPriority).Take(8))
-                    {
-                        <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
-                             alt="@p.Name" title="@p.Name"
-                             style="width:36px;height:36px;border-radius:6px;" />
-                    }
-                </div>
-            }
-            @if (watchProviders.Buy.Count > 0)
-            {
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <small class="text-muted me-1" style="width:3.5rem;">Buy</small>
-                    @foreach (var p in watchProviders.Buy.OrderBy(p => p.DisplayPriority).Take(8))
-                    {
-                        <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
-                             alt="@p.Name" title="@p.Name"
-                             style="width:36px;height:36px;border-radius:6px;" />
-                    }
-                </div>
-            }
-            @if (watchProviders.Link is not null)
-            {
-                <small><a href="@watchProviders.Link" target="_blank" rel="noopener noreferrer" class="text-muted">Full availability on JustWatch</a></small>
-            }
-        </div>
-    }
-
-    @if (trailerKey is not null)
-    {
-        <div class="mt-4">
-            <h5>Trailer</h5>
-            <div class="ratio ratio-16x9" style="max-width:720px;">
-                <iframe src="https://www.youtube.com/embed/@trailerKey"
-                        title="@movie.Title trailer"
-                        allowfullscreen
-                        referrerpolicy="strict-origin-when-cross-origin">
-                </iframe>
-            </div>
-        </div>
-    }
-
-    @if (recommendations.Count > 0)
-    {
-        <div class="mt-4">
-            <h5>More Like This</h5>
-            <div class="d-flex gap-3 overflow-auto pb-2">
-                @foreach (var rec in recommendations)
-                {
-                    var recYear = rec.ReleaseDate?.Split('-')[0];
-                    var posterSrc = rec.PosterPath != null
-                        ? $"https://image.tmdb.org/t/p/w154{rec.PosterPath}"
-                        : null;
-
-                    @if (recommendationLocalIds.TryGetValue(rec.Id, out var localId))
-                    {
-                        <a href="/movies/@localId" class="text-decoration-none flex-shrink-0" style="width:100px;">
-                            @if (posterSrc is not null)
-                            {
-                                <img src="@posterSrc" alt="@rec.Title" style="width:100px;height:150px;object-fit:cover;border-radius:4px;display:block;" />
-                            }
-                            else
-                            {
-                                <div class="bg-secondary d-flex align-items-center justify-content-center" style="width:100px;height:150px;border-radius:4px;color:white;font-size:0.7rem;text-align:center;padding:4px;">@rec.Title</div>
-                            }
-                            <small class="d-block mt-1 text-body" style="font-size:0.7rem;line-height:1.3;">@rec.Title</small>
-                            @if (recYear is not null)
-                            {
-                                <small class="text-muted" style="font-size:0.65rem;">@recYear</small>
-                            }
-                        </a>
-                    }
-                    else
-                    {
-                        <div class="flex-shrink-0" style="width:100px;">
-                            @if (posterSrc is not null)
-                            {
-                                <img src="@posterSrc" alt="@rec.Title" style="width:100px;height:150px;object-fit:cover;border-radius:4px;display:block;" />
-                            }
-                            else
-                            {
-                                <div class="bg-secondary d-flex align-items-center justify-content-center" style="width:100px;height:150px;border-radius:4px;color:white;font-size:0.7rem;text-align:center;padding:4px;">@rec.Title</div>
-                            }
-                            <small class="d-block mt-1 text-body" style="font-size:0.7rem;line-height:1.3;">@rec.Title</small>
-                            @if (recYear is not null)
-                            {
-                                <small class="text-muted" style="font-size:0.65rem;">@recYear</small>
-                            }
+                        <div class="provider-row">
+                            <span class="provider-label">STREAM</span>
+                            <div class="provider-logos">
+                                @foreach (var p in watchProviders.Flatrate.OrderBy(p => p.DisplayPriority).Take(8))
+                                {
+                                    <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
+                                         alt="@p.Name" title="@p.Name" class="provider-logo" />
+                                }
+                            </div>
                         </div>
                     }
-                }
+                    @if (watchProviders.Rent.Count > 0)
+                    {
+                        <div class="provider-row">
+                            <span class="provider-label">RENT</span>
+                            <div class="provider-logos">
+                                @foreach (var p in watchProviders.Rent.OrderBy(p => p.DisplayPriority).Take(8))
+                                {
+                                    <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
+                                         alt="@p.Name" title="@p.Name" class="provider-logo" />
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (watchProviders.Buy.Count > 0)
+                    {
+                        <div class="provider-row">
+                            <span class="provider-label">BUY</span>
+                            <div class="provider-logos">
+                                @foreach (var p in watchProviders.Buy.OrderBy(p => p.DisplayPriority).Take(8))
+                                {
+                                    <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
+                                         alt="@p.Name" title="@p.Name" class="provider-logo" />
+                                }
+                            </div>
+                        </div>
+                    }
+                    @if (watchProviders.Link is not null)
+                    {
+                        <div class="mt-2">
+                            <small><a href="@watchProviders.Link" target="_blank" rel="noopener noreferrer" class="text-muted">// FULL AVAILABILITY ON JUSTWATCH</a></small>
+                        </div>
+                    }
+                </div>
             </div>
-        </div>
-    }
+        }
 
+        @if (trailerKey is not null)
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">VISUAL RECORD</div>
+                <div class="panel-body">
+                    <div class="ratio ratio-16x9 trailer-frame">
+                        <iframe src="https://www.youtube.com/embed/@trailerKey"
+                                title="@movie.Title trailer"
+                                allowfullscreen
+                                referrerpolicy="strict-origin-when-cross-origin">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (recommendations.Count > 0)
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">RELATED FILES</div>
+                <div class="panel-body">
+                    <div class="rec-strip">
+                        @foreach (var rec in recommendations)
+                        {
+                            var recYear = rec.ReleaseDate?.Split('-')[0];
+                            var posterSrc = rec.PosterPath != null
+                                ? $"https://image.tmdb.org/t/p/w154{rec.PosterPath}"
+                                : null;
+
+                            @if (recommendationLocalIds.TryGetValue(rec.Id, out var localId))
+                            {
+                                <a href="/movies/@localId" class="rec-card text-decoration-none">
+                                    @if (posterSrc is not null)
+                                    {
+                                        <img src="@posterSrc" alt="@rec.Title" class="rec-poster" />
+                                    }
+                                    else
+                                    {
+                                        <div class="rec-poster-placeholder">@rec.Title</div>
+                                    }
+                                    <div class="rec-title">@rec.Title</div>
+                                    @if (recYear is not null)
+                                    {
+                                        <div class="rec-year">@recYear</div>
+                                    }
+                                </a>
+                            }
+                            else
+                            {
+                                <div class="rec-card rec-card--unlinked">
+                                    @if (posterSrc is not null)
+                                    {
+                                        <img src="@posterSrc" alt="@rec.Title" class="rec-poster" />
+                                    }
+                                    else
+                                    {
+                                        <div class="rec-poster-placeholder">@rec.Title</div>
+                                    }
+                                    <div class="rec-title">@rec.Title</div>
+                                    @if (recYear is not null)
+                                    {
+                                        <div class="rec-year">@recYear</div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+    </div>
 }
 
 @code {
