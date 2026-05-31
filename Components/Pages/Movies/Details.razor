@@ -96,13 +96,6 @@ else
                                 ♥ @(movie.IsFavorite ? "CLASSIFIED" : "CLASSIFY")
                             </button>
                         </form>
-                        @if (movie.TmdbId is not null && movie.Cast.Count == 0)
-                        {
-                            <form method="post" @formname="load-cast" @onsubmit="LoadCast" class="d-inline">
-                                <AntiforgeryToken />
-                                <button type="submit" class="btn btn-outline-secondary btn-sm">LOAD PERSONNEL</button>
-                            </form>
-                        }
                     </div>
                 </div>
 
@@ -282,15 +275,42 @@ else
             var trailerTask = TmdbService.GetTrailerKeyAsync(tmdbId);
             var providersTask = TmdbService.GetWatchProvidersAsync(tmdbId);
             var recsTask = TmdbService.GetRecommendationsAsync(tmdbId);
-            await Task.WhenAll(trailerTask, providersTask, recsTask);
+            // Fetch cast concurrently if not yet saved
+            var castTask = movie.Cast.Count == 0
+                ? TmdbService.FetchCastAsync(tmdbId)
+                : Task.FromResult(movie.Cast);
+
+            await Task.WhenAll(trailerTask, providersTask, recsTask, castTask);
             trailerKey = trailerTask.Result;
             watchProviders = providersTask.Result;
             recommendations = recsTask.Result;
 
+            if (movie.Cast.Count == 0 && castTask.Result.Count > 0)
+            {
+                await MovieService.SaveCastAsync(movie.Id, castTask.Result);
+                movie.Cast = castTask.Result;
+            }
+
             if (recommendations.Count > 0)
             {
-                var tmdbIds = recommendations.Select(r => r.Id);
+                var tmdbIds = recommendations.Select(r => r.Id).ToList();
                 recommendationLocalIds = await MovieService.GetLocalIdsByTmdbIdsAsync(tmdbIds);
+
+                var toImport = recommendations
+                    .Where(r => !recommendationLocalIds.ContainsKey(r.Id))
+                    .ToList();
+
+                if (toImport.Count > 0)
+                {
+                    // Fetch all missing movies from TMDB in parallel
+                    var fetched = await Task.WhenAll(toImport.Select(r => TmdbService.ImportAsync(r.Id)));
+
+                    // Write to DB sequentially — DbContext is not thread-safe
+                    foreach (var imported in fetched.OfType<Movie>())
+                        await MovieService.AddIfNotExistsAsync(imported);
+
+                    recommendationLocalIds = await MovieService.GetLocalIdsByTmdbIdsAsync(tmdbIds);
+                }
             }
         }
     }
@@ -300,13 +320,5 @@ else
         if (movie is null) return;
         await MovieService.ToggleFavoriteAsync(movie.Id);
         movie.IsFavorite = !movie.IsFavorite;
-    }
-
-    private async Task LoadCast()
-    {
-        if (movie?.TmdbId is not int tmdbId || movie.Cast.Count > 0) return;
-        var cast = await TmdbService.FetchCastAsync(tmdbId);
-        await MovieService.SaveCastAsync(movie.Id, cast);
-        movie = await MovieService.GetByIdAsync(Id);
     }
 }

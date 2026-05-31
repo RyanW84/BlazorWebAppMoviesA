@@ -104,6 +104,14 @@ public class MovieService(MovieDbContext db) : IMovieService
         await db.SaveChangesAsync();
     }
 
+    public async Task AddIfNotExistsAsync(Movie movie)
+    {
+        if (movie.TmdbId is int tmdbId && await db.Movies.AnyAsync(m => m.TmdbId == tmdbId))
+            return;
+        db.Movies.Add(movie);
+        await db.SaveChangesAsync();
+    }
+
     public async Task UpdateAsync(Movie movie)
     {
         db.Movies.Update(movie);

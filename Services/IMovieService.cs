@@ -13,6 +13,7 @@ namespace BlazorWebAppMovies.Services
         Task ToggleFavoriteAsync(int id);
         Task<Movie?> GetByIdAsync(int id);
         Task AddAsync(Movie movie);
+        Task AddIfNotExistsAsync(Movie movie);
         Task UpdateAsync(Movie movie);
         Task DeleteAsync(int id);
     }
