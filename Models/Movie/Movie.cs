@@ -32,6 +32,8 @@ namespace BlazorWebAppMovies.Models.Movie
 
         public bool IsFavorite { get; set; }
 
+        public bool CastBackfilled { get; set; }
+
         public List<CastMember> Cast { get; set; } = [];
     }
 }

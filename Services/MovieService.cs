@@ -10,7 +10,7 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     private async Task ReplaceCastAsync(int movieId, List<CastMember> cast)
     {
-        db.CastMembers.RemoveRange(db.CastMembers.Where(c => c.MovieId == movieId));
+        await db.CastMembers.Where(c => c.MovieId == movieId).ExecuteDeleteAsync();
         foreach (var member in cast)
             member.MovieId = movieId;
         db.CastMembers.AddRange(cast);
@@ -23,7 +23,7 @@ public class MovieService(MovieDbContext db) : IMovieService
         string? search = null, string? genre = null, string sortBy = "title",
         bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false)
     {
-        var query = db.Movies.AsQueryable();
+        var query = db.Movies.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -78,13 +78,17 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     public async Task<(int TotalMovies, int FavoriteMovies)> GetStatsAsync()
     {
-        var total     = await db.Movies.CountAsync();
-        var favorites = await db.Movies.CountAsync(m => m.IsFavorite);
-        return (total, favorites);
+        var result = await db.Movies
+            .GroupBy(_ => 1)
+            .Select(g => new { Total = g.Count(), Favorites = g.Sum(m => m.IsFavorite ? 1 : 0) })
+            .FirstOrDefaultAsync();
+        return (result?.Total ?? 0, result?.Favorites ?? 0);
     }
 
     public async Task<Movie?> GetByIdAsync(int id) =>
-        await db.Movies.Include(m => m.Cast.OrderBy(c => c.Order)).FirstOrDefaultAsync(m => m.Id == id);
+        await db.Movies.AsNoTracking()
+            .Include(m => m.Cast.OrderBy(c => c.Order))
+            .FirstOrDefaultAsync(m => m.Id == id);
 
     public async Task<Dictionary<int, int>> GetLocalIdsByTmdbIdsAsync(IEnumerable<int> tmdbIds)
     {
@@ -103,8 +107,8 @@ public class MovieService(MovieDbContext db) : IMovieService
             .ToListAsync();
 
         return firsts
-            .Where(s => s.Length == 1 && char.IsLetter(s[0]))
-            .Select(s => char.ToUpperInvariant(s[0]))
+            .Where(s => char.IsLetter(s[0]))
+            .Select(s => s[0])
             .ToHashSet();
     }
 
@@ -116,8 +120,8 @@ public class MovieService(MovieDbContext db) : IMovieService
             .ToListAsync();
 
         return firsts
-            .Where(s => s.Length == 1 && char.IsLetter(s[0]))
-            .Select(s => char.ToUpperInvariant(s[0]))
+            .Where(s => char.IsLetter(s[0]))
+            .Select(s => s[0])
             .ToHashSet();
     }
 
@@ -136,7 +140,6 @@ public class MovieService(MovieDbContext db) : IMovieService
             query = query.Where(m => m.Director!.ToLower().Contains(search.ToLower()));
         }
 
-        // Project to anonymous type for SQL translation, then map to record in memory
         var grouped = query
             .GroupBy(m => new { m.Director, m.DirectorTmdbId })
             .Select(g => new { Name = g.Key.Director!, TmdbId = g.Key.DirectorTmdbId, Count = g.Count() })
@@ -162,7 +165,6 @@ public class MovieService(MovieDbContext db) : IMovieService
             query = query.Where(c => c.Name.ToLower().Contains(search.ToLower()));
         }
 
-        // Project to anonymous type for SQL translation, then map to record in memory
         var grouped = query
             .GroupBy(c => new { c.Name, c.TmdbPersonId })
             .Select(g => new { Name = g.Key.Name, TmdbId = g.Key.TmdbPersonId, Count = g.Count() })
@@ -175,13 +177,10 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     // ── IMovieCommandService ─────────────────────────────────────────────────
 
-    public async Task ToggleFavoriteAsync(int id)
-    {
-        var movie = await db.Movies.FindAsync(id);
-        if (movie is null) return;
-        movie.IsFavorite = !movie.IsFavorite;
-        await db.SaveChangesAsync();
-    }
+    public async Task ToggleFavoriteAsync(int id) =>
+        await db.Movies
+            .Where(m => m.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsFavorite, m => !m.IsFavorite));
 
     public async Task SaveCastAsync(int movieId, List<CastMember> cast) =>
         await ReplaceCastAsync(movieId, cast);
@@ -222,11 +221,7 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     public async Task DeleteAsync(int id)
     {
-        var movie = await db.Movies.FindAsync(id);
-        if (movie is not null)
-        {
-            db.Movies.Remove(movie);
-            await db.SaveChangesAsync();
-        }
+        await db.CastMembers.Where(c => c.MovieId == id).ExecuteDeleteAsync();
+        await db.Movies.Where(m => m.Id == id).ExecuteDeleteAsync();
     }
 }

@@ -23,6 +23,7 @@ builder.Services.AddHostedService<CastBackfillService>();
 builder.Services.AddHttpClient<TmdbService>(client =>
 {
     client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+    client.Timeout = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddScoped<ITmdbService>(sp        => sp.GetRequiredService<TmdbService>());
 builder.Services.AddScoped<ITmdbSearchService>(sp  => sp.GetRequiredService<TmdbService>());

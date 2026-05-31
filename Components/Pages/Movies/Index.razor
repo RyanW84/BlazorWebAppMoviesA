@@ -9,7 +9,9 @@
     <h1>Movies</h1>
     <div class="d-flex gap-2">
         <button class="btn btn-outline-secondary" @onclick="SurpriseMe">Surprise me</button>
-        <button class="btn @(favoritesOnly ? "btn-danger" : "btn-outline-danger")" @onclick="ToggleFavoritesFilter" title="Favorites">&#9829;</button>
+        <button class="btn @(favoritesOnly ? "btn-danger" : "btn-outline-danger")" @onclick="ToggleFavoritesFilter" title="Favorites">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.5.5a.5.5 0 0 0-1 0v.518A7 7 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518A7 7 0 0 0 7.5 14.982V15.5a.5.5 0 0 0 1 0v-.518A7 7 0 0 0 14.982 8.5H15.5a.5.5 0 0 0 0-1h-.518A7 7 0 0 0 8.5 1.018V.5ZM7 2.028V3.5a.5.5 0 0 0 1 0V2.028A6 6 0 0 1 13.972 8H12.5a.5.5 0 0 0 0 1h1.472A6 6 0 0 1 8 13.972V12.5a.5.5 0 0 0-1 0v1.472A6 6 0 0 1 2.028 8H3.5a.5.5 0 0 0 0-1H2.028A6 6 0 0 1 7 2.028ZM8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
+        </button>
         <a href="/movies/create" class="btn btn-primary">Add Movie</a>
     </div>
 </div>
@@ -66,7 +68,9 @@ else
             {
                 <tr>
                     <td>
-                        <button class="btn btn-sm btn-link p-0" style="color:@(movie.IsFavorite ? "#cc2200" : "#444"); font-size:1rem;" @onclick="() => ToggleFavorite(movie)" title="@(movie.IsFavorite ? "Remove from favorites" : "Add to favorites")">&#9829;</button>
+                        <button class="btn btn-sm btn-link p-0" style="color:@(movie.IsFavorite ? "#cc2200" : "#444");" @onclick="() => ToggleFavorite(movie)" title="@(movie.IsFavorite ? "Remove from favorites" : "Add to favorites")">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.5.5a.5.5 0 0 0-1 0v.518A7 7 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518A7 7 0 0 0 7.5 14.982V15.5a.5.5 0 0 0 1 0v-.518A7 7 0 0 0 14.982 8.5H15.5a.5.5 0 0 0 0-1h-.518A7 7 0 0 0 8.5 1.018V.5ZM7 2.028V3.5a.5.5 0 0 0 1 0V2.028A6 6 0 0 1 13.972 8H12.5a.5.5 0 0 0 0 1h1.472A6 6 0 0 1 8 13.972V12.5a.5.5 0 0 0-1 0v1.472A6 6 0 0 1 2.028 8H3.5a.5.5 0 0 0 0-1H2.028A6 6 0 0 1 7 2.028ZM8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
+                        </button>
                     </td>
                     <td>
                         <a href="/movies/@movie.Id">
@@ -120,6 +124,10 @@ else
 }
 
 @code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "favorites")]
+    public bool FavoritesParam { get; set; }
+
     private List<Movie> movies = [];
     private List<string> genres = [];
     private string searchTerm = "";
@@ -134,6 +142,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        favoritesOnly = FavoritesParam;
         genres = await MovieService.GetGenresAsync();
         await LoadMovies();
     }

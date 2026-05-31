@@ -17,7 +17,7 @@ public class CastBackfillService(
         var movieCommands = scope.ServiceProvider.GetRequiredService<IMovieCommandService>();
 
         var missing = await db.Movies
-            .Where(m => m.TmdbId != null && !db.CastMembers.Any(c => c.MovieId == m.Id))
+            .Where(m => m.TmdbId != null && !m.CastBackfilled && !db.CastMembers.Any(c => c.MovieId == m.Id))
             .Select(m => new { m.Id, m.TmdbId, m.Title })
             .ToListAsync(stoppingToken);
 
@@ -48,9 +48,13 @@ public class CastBackfillService(
                 else
                 {
                     logger.LogWarning(
-                        "Cast backfill: no cast returned for {Title} (tmdbId={TmdbId})",
+                        "Cast backfill: no cast available for {Title} (tmdbId={TmdbId}) — will not retry",
                         movie.Title, movie.TmdbId);
                 }
+
+                await db.Movies
+                    .Where(m => m.Id == movie.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(m => m.CastBackfilled, true), stoppingToken);
 
                 await Task.Delay(TmdbConstants.ApiDelayMs, stoppingToken);
             }

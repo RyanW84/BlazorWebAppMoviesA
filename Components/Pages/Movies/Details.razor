@@ -105,7 +105,8 @@ else
                         <form method="post" @formname="toggle-favorite" @onsubmit="ToggleFavorite" class="d-inline">
                             <AntiforgeryToken />
                             <button type="submit" class="btn btn-sm @(movie.IsFavorite ? "btn-danger" : "btn-outline-danger")">
-                                ♥ @(movie.IsFavorite ? "CLASSIFIED" : "CLASSIFY")
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8.5.5a.5.5 0 0 0-1 0v.518A7 7 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518A7 7 0 0 0 7.5 14.982V15.5a.5.5 0 0 0 1 0v-.518A7 7 0 0 0 14.982 8.5H15.5a.5.5 0 0 0 0-1h-.518A7 7 0 0 0 8.5 1.018V.5ZM7 2.028V3.5a.5.5 0 0 0 1 0V2.028A6 6 0 0 1 13.972 8H12.5a.5.5 0 0 0 0 1h1.472A6 6 0 0 1 8 13.972V12.5a.5.5 0 0 0-1 0v1.472A6 6 0 0 1 2.028 8H3.5a.5.5 0 0 0 0-1H2.028A6 6 0 0 1 7 2.028ZM8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
+                                @(movie.IsFavorite ? "CLASSIFIED" : "CLASSIFY")
                             </button>
                         </form>
                     </div>
