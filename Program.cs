@@ -10,13 +10,26 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddDbContext<MovieDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("MovieDb")));
 
-builder.Services.AddScoped<IMovieService, MovieService>();
+// Movie services — register concrete class once, expose through all three interfaces
+builder.Services.AddScoped<MovieService>();
+builder.Services.AddScoped<IMovieService>(sp      => sp.GetRequiredService<MovieService>());
+builder.Services.AddScoped<IMovieQueryService>(sp  => sp.GetRequiredService<MovieService>());
+builder.Services.AddScoped<IMovieCommandService>(sp => sp.GetRequiredService<MovieService>());
+
+builder.Services.AddScoped<IMovieImportOrchestrator, MovieImportOrchestrator>();
 builder.Services.AddHostedService<CastBackfillService>();
 
-builder.Services.AddHttpClient<ITmdbService, TmdbService>(client =>
+// TMDB — typed HttpClient registered once; focused interfaces resolved from it
+builder.Services.AddHttpClient<TmdbService>(client =>
 {
     client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
 });
+builder.Services.AddScoped<ITmdbService>(sp        => sp.GetRequiredService<TmdbService>());
+builder.Services.AddScoped<ITmdbSearchService>(sp  => sp.GetRequiredService<TmdbService>());
+builder.Services.AddScoped<ITmdbImportService>(sp  => sp.GetRequiredService<TmdbService>());
+builder.Services.AddScoped<ITmdbCreditService>(sp  => sp.GetRequiredService<TmdbService>());
+builder.Services.AddScoped<ITmdbMediaService>(sp   => sp.GetRequiredService<TmdbService>());
+builder.Services.AddScoped<ITmdbPersonService>(sp  => sp.GetRequiredService<TmdbService>());
 
 var app = builder.Build();
 
@@ -36,10 +49,11 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
-// Seed classic films in the background so startup is not blocked
-_ = Task.Run(() => MovieSeeder.SeedAsync(app.Services));
-
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+
+// Seed after the server is running so the DI scope is fully initialised
+app.Lifetime.ApplicationStarted.Register(() =>
+    _ = Task.Run(() => MovieSeeder.SeedAsync(app.Services)));
 
 app.Run();

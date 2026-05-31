@@ -145,26 +145,29 @@ else
         totalCount = result.TotalCount;
     }
 
+    private async Task ResetAndReload()
+    {
+        currentPage = 1;
+        await LoadMovies();
+    }
+
     private async Task OnSearchInput(ChangeEventArgs e)
     {
         searchTerm = e.Value?.ToString() ?? "";
-        currentPage = 1;
-        await LoadMovies();
+        await ResetAndReload();
     }
 
     private async Task OnGenreChange(ChangeEventArgs e)
     {
         selectedGenre = e.Value?.ToString() ?? "";
-        currentPage = 1;
-        await LoadMovies();
+        await ResetAndReload();
     }
 
     private async Task SetSort(string column)
     {
         ascending = sortBy == column ? !ascending : true;
         sortBy = column;
-        currentPage = 1;
-        await LoadMovies();
+        await ResetAndReload();
     }
 
     private async Task GoToPage(int page)
@@ -177,8 +180,7 @@ else
     private async Task OnPageSizeChange(ChangeEventArgs e)
     {
         pageSize = int.Parse(e.Value?.ToString() ?? "25");
-        currentPage = 1;
-        await LoadMovies();
+        await ResetAndReload();
     }
 
     private async Task ToggleFavorite(Movie movie)
@@ -190,8 +192,7 @@ else
     private async Task ToggleFavoritesFilter()
     {
         favoritesOnly = !favoritesOnly;
-        currentPage = 1;
-        await LoadMovies();
+        await ResetAndReload();
     }
 
     private async Task SurpriseMe()

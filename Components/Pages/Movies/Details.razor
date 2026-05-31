@@ -1,6 +1,9 @@
 @page "/movies/{Id:int}"
-@inject IMovieService MovieService
-@inject ITmdbService TmdbService
+@inject IMovieQueryService   MovieQuery
+@inject IMovieCommandService MovieCommands
+@inject ITmdbCreditService   TmdbCredits
+@inject ITmdbMediaService    TmdbMedia
+@inject IMovieImportOrchestrator Importer
 
 <PageTitle>@(movie?.Title ?? "Movie")</PageTitle>
 
@@ -111,180 +114,10 @@ else
             </div>
         </div>
 
-        @if (movie.Cast.Count > 0)
-        {
-            <div class="terminal-panel">
-                <div class="panel-header">PERSONNEL DATABASE</div>
-                <div class="panel-body">
-                    <div class="cast-grid">
-                        @foreach (var member in movie.Cast)
-                        {
-                            @if (member.TmdbPersonId is not null)
-                            {
-                                <a href="/person/@member.TmdbPersonId" class="cast-member text-decoration-none">
-                                    @if (member.ProfileUrl is not null)
-                                    {
-                                        <img src="@member.ProfileUrl" alt="@member.Name" class="cast-avatar" />
-                                    }
-                                    else
-                                    {
-                                        <div class="cast-avatar-placeholder">@member.Name[0]</div>
-                                    }
-                                    <div class="cast-name">@member.Name</div>
-                                    @if (!string.IsNullOrEmpty(member.Character))
-                                    {
-                                        <div class="cast-character">@member.Character</div>
-                                    }
-                                </a>
-                            }
-                            else
-                            {
-                                <div class="cast-member">
-                                    @if (member.ProfileUrl is not null)
-                                    {
-                                        <img src="@member.ProfileUrl" alt="@member.Name" class="cast-avatar" />
-                                    }
-                                    else
-                                    {
-                                        <div class="cast-avatar-placeholder">@member.Name[0]</div>
-                                    }
-                                    <div class="cast-name">@member.Name</div>
-                                    @if (!string.IsNullOrEmpty(member.Character))
-                                    {
-                                        <div class="cast-character">@member.Character</div>
-                                    }
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (watchProviders is not null && (watchProviders.Flatrate.Count > 0 || watchProviders.Rent.Count > 0 || watchProviders.Buy.Count > 0))
-        {
-            <div class="terminal-panel">
-                <div class="panel-header">DISTRIBUTION NETWORK</div>
-                <div class="panel-body">
-                    @if (watchProviders.Flatrate.Count > 0)
-                    {
-                        <div class="provider-row">
-                            <span class="provider-label">STREAM</span>
-                            <div class="provider-logos">
-                                @foreach (var p in watchProviders.Flatrate.OrderBy(p => p.DisplayPriority).Take(8))
-                                {
-                                    <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
-                                         alt="@p.Name" title="@p.Name" class="provider-logo" />
-                                }
-                            </div>
-                        </div>
-                    }
-                    @if (watchProviders.Rent.Count > 0)
-                    {
-                        <div class="provider-row">
-                            <span class="provider-label">RENT</span>
-                            <div class="provider-logos">
-                                @foreach (var p in watchProviders.Rent.OrderBy(p => p.DisplayPriority).Take(8))
-                                {
-                                    <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
-                                         alt="@p.Name" title="@p.Name" class="provider-logo" />
-                                }
-                            </div>
-                        </div>
-                    }
-                    @if (watchProviders.Buy.Count > 0)
-                    {
-                        <div class="provider-row">
-                            <span class="provider-label">BUY</span>
-                            <div class="provider-logos">
-                                @foreach (var p in watchProviders.Buy.OrderBy(p => p.DisplayPriority).Take(8))
-                                {
-                                    <img src="@(p.LogoPath != null ? $"https://image.tmdb.org/t/p/w45{p.LogoPath}" : "")"
-                                         alt="@p.Name" title="@p.Name" class="provider-logo" />
-                                }
-                            </div>
-                        </div>
-                    }
-                    @if (watchProviders.Link is not null)
-                    {
-                        <div class="mt-2">
-                            <small><a href="@watchProviders.Link" target="_blank" rel="noopener noreferrer" class="text-muted">// FULL AVAILABILITY ON JUSTWATCH</a></small>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-
-        @if (trailerKey is not null)
-        {
-            <div class="terminal-panel">
-                <div class="panel-header">VISUAL RECORD</div>
-                <div class="panel-body">
-                    <div class="ratio ratio-16x9 trailer-frame">
-                        <iframe src="https://www.youtube.com/embed/@trailerKey"
-                                title="@movie.Title trailer"
-                                allowfullscreen
-                                referrerpolicy="strict-origin-when-cross-origin">
-                        </iframe>
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (recommendations.Count > 0)
-        {
-            <div class="terminal-panel">
-                <div class="panel-header">RELATED FILES</div>
-                <div class="panel-body">
-                    <div class="rec-strip">
-                        @foreach (var rec in recommendations)
-                        {
-                            var recYear = rec.ReleaseDate?.Split('-')[0];
-                            var posterSrc = rec.PosterPath != null
-                                ? $"https://image.tmdb.org/t/p/w154{rec.PosterPath}"
-                                : null;
-
-                            @if (recommendationLocalIds.TryGetValue(rec.Id, out var localId))
-                            {
-                                <a href="/movies/@localId" class="rec-card text-decoration-none">
-                                    @if (posterSrc is not null)
-                                    {
-                                        <img src="@posterSrc" alt="@rec.Title" class="rec-poster" />
-                                    }
-                                    else
-                                    {
-                                        <div class="rec-poster-placeholder">@rec.Title</div>
-                                    }
-                                    <div class="rec-title">@rec.Title</div>
-                                    @if (recYear is not null)
-                                    {
-                                        <div class="rec-year">@recYear</div>
-                                    }
-                                </a>
-                            }
-                            else
-                            {
-                                <div class="rec-card rec-card--unlinked">
-                                    @if (posterSrc is not null)
-                                    {
-                                        <img src="@posterSrc" alt="@rec.Title" class="rec-poster" />
-                                    }
-                                    else
-                                    {
-                                        <div class="rec-poster-placeholder">@rec.Title</div>
-                                    }
-                                    <div class="rec-title">@rec.Title</div>
-                                    @if (recYear is not null)
-                                    {
-                                        <div class="rec-year">@recYear</div>
-                                    }
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
-            </div>
-        }
+        <CastPanel Cast="@movie.Cast" />
+        <WatchProvidersPanel Providers="@watchProviders" />
+        <TrailerPanel TrailerKey="@trailerKey" MovieTitle="@movie.Title" />
+        <RecommendationsPanel Recommendations="@recommendations" LocalIds="@recommendationLocalIds" />
 
     </div>
 }
@@ -299,61 +132,47 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        movie = await MovieService.GetByIdAsync(Id);
-        if (movie?.TmdbId is int tmdbId)
+        movie = await MovieQuery.GetByIdAsync(Id);
+        if (movie?.TmdbId is not int tmdbId) return;
+
+        var trailerTask   = TmdbMedia.GetTrailerKeyAsync(tmdbId);
+        var providersTask = TmdbMedia.GetWatchProvidersAsync(tmdbId);
+        var recsTask      = TmdbMedia.GetRecommendationsAsync(tmdbId);
+
+        bool needsCredits = movie.Cast.Count == 0
+            || movie.Cast.Any(c => c.TmdbPersonId is null)
+            || (movie.DirectorTmdbId is null && !string.IsNullOrEmpty(movie.Director));
+
+        Task<(List<CastMember> Cast, int? DirectorTmdbId)>? creditsTask = needsCredits
+            ? TmdbCredits.FetchCreditsAsync(tmdbId)
+            : null;
+
+        var tasks = new List<Task> { trailerTask, providersTask, recsTask };
+        if (creditsTask is not null) tasks.Add(creditsTask);
+        await Task.WhenAll(tasks);
+
+        trailerKey    = trailerTask.Result;
+        watchProviders = providersTask.Result;
+        recommendations = recsTask.Result;
+
+        if (creditsTask is not null)
         {
-            var trailerTask = TmdbService.GetTrailerKeyAsync(tmdbId);
-            var providersTask = TmdbService.GetWatchProvidersAsync(tmdbId);
-            var recsTask = TmdbService.GetRecommendationsAsync(tmdbId);
+            var (fetchedCast, directorTmdbId) = creditsTask.Result;
+            await MovieCommands.BackfillPersonIdsAsync(movie.Id, directorTmdbId, fetchedCast);
+            movie = await MovieQuery.GetByIdAsync(Id);
+        }
 
-            // Fetch credits if cast is missing, cast lacks person IDs, or director ID is missing
-            bool needsCredits = movie.Cast.Count == 0
-                || movie.Cast.Any(c => c.TmdbPersonId is null)
-                || (movie.DirectorTmdbId is null && !string.IsNullOrEmpty(movie.Director));
-
-            Task<(List<CastMember> Cast, int? DirectorTmdbId)>? creditsTask = needsCredits
-                ? TmdbService.FetchCreditsAsync(tmdbId)
-                : null;
-
-            var tasks = new List<Task> { trailerTask, providersTask, recsTask };
-            if (creditsTask is not null) tasks.Add(creditsTask);
-            await Task.WhenAll(tasks);
-
-            trailerKey = trailerTask.Result;
-            watchProviders = providersTask.Result;
-            recommendations = recsTask.Result;
-
-            if (creditsTask is not null)
-            {
-                var (fetchedCast, directorTmdbId) = creditsTask.Result;
-                await MovieService.BackfillPersonIdsAsync(movie.Id, directorTmdbId, fetchedCast);
-                movie = await MovieService.GetByIdAsync(Id);
-            }
-
-            if (recommendations.Count > 0)
-            {
-                var tmdbIds = recommendations.Select(r => r.Id).ToList();
-                recommendationLocalIds = await MovieService.GetLocalIdsByTmdbIdsAsync(tmdbIds);
-
-                var toImport = recommendations
-                    .Where(r => !recommendationLocalIds.ContainsKey(r.Id))
-                    .ToList();
-
-                if (toImport.Count > 0)
-                {
-                    var fetched = await Task.WhenAll(toImport.Select(r => TmdbService.ImportAsync(r.Id)));
-                    foreach (var imported in fetched.OfType<Movie>())
-                        await MovieService.AddIfNotExistsAsync(imported);
-                    recommendationLocalIds = await MovieService.GetLocalIdsByTmdbIdsAsync(tmdbIds);
-                }
-            }
+        if (recommendations.Count > 0)
+        {
+            var tmdbIds = recommendations.Select(r => r.Id);
+            recommendationLocalIds = await Importer.EnsureLocalAsync(tmdbIds);
         }
     }
 
     private async Task ToggleFavorite()
     {
         if (movie is null) return;
-        await MovieService.ToggleFavoriteAsync(movie.Id);
+        await MovieCommands.ToggleFavoriteAsync(movie.Id);
         movie.IsFavorite = !movie.IsFavorite;
     }
 }

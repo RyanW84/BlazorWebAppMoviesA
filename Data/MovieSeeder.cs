@@ -7,10 +7,11 @@ public static class MovieSeeder
 {
     public static async Task SeedAsync(IServiceProvider services)
     {
-        using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<MovieDbContext>();
-        var tmdb = scope.ServiceProvider.GetRequiredService<ITmdbService>();
-        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("MovieSeeder");
+        using var scope  = services.CreateScope();
+        var db           = scope.ServiceProvider.GetRequiredService<MovieDbContext>();
+        var tmdbSearch   = scope.ServiceProvider.GetRequiredService<ITmdbSearchService>();
+        var tmdbImport   = scope.ServiceProvider.GetRequiredService<ITmdbImportService>();
+        var logger       = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("MovieSeeder");
 
         var existingTmdbIds = (await db.Movies
             .Where(m => m.TmdbId != null)
@@ -25,14 +26,14 @@ public static class MovieSeeder
         }
 
         logger.LogInformation("Seed: discovering films from TMDB (1970–2024)…");
-        var ids = await tmdb.DiscoverClassicIdsAsync();
+        var ids    = await tmdbSearch.DiscoverClassicIdsAsync();
         var toSeed = ids.Where(id => !existingTmdbIds.Contains(id)).ToList();
         logger.LogInformation("Seed: {Total} discovered, {Count} to insert", ids.Count, toSeed.Count);
 
         var seeded = 0;
         foreach (var id in toSeed)
         {
-            var movie = await tmdb.ImportAsync(id);
+            var movie = await tmdbImport.ImportAsync(id);
             if (movie is not null)
             {
                 db.Movies.Add(movie);
@@ -42,7 +43,7 @@ public static class MovieSeeder
                     "Seed [{Current}/{Total}]: \"{Title}\" ({Year})",
                     seeded, toSeed.Count, movie.Title, movie.ReleaseYear);
             }
-            await Task.Delay(300);
+            await Task.Delay(TmdbConstants.ApiDelayMs);
         }
 
         logger.LogInformation("Seed complete — {Count} films added", seeded);

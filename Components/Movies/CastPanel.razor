@@ -1,0 +1,48 @@
+@using BlazorWebAppMovies.Models.Movie
+
+@if (Cast.Count > 0)
+{
+    <div class="terminal-panel">
+        <div class="panel-header">PERSONNEL DATABASE</div>
+        <div class="panel-body">
+            <div class="cast-grid">
+                @foreach (var member in Cast)
+                {
+                    @if (member.TmdbPersonId is not null)
+                    {
+                        <a href="/person/@member.TmdbPersonId" class="cast-member text-decoration-none">
+                            @CastAvatar(member)
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="cast-member">
+                            @CastAvatar(member)
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<CastMember> Cast { get; set; } = [];
+
+    private RenderFragment CastAvatar(CastMember member) =>
+        @<text>
+            @if (member.ProfileUrl is not null)
+            {
+                <img src="@member.ProfileUrl" alt="@member.Name" class="cast-avatar" />
+            }
+            else
+            {
+                <div class="cast-avatar-placeholder">@member.Name[0]</div>
+            }
+            <div class="cast-name">@member.Name</div>
+            @if (!string.IsNullOrEmpty(member.Character))
+            {
+                <div class="cast-character">@member.Character</div>
+            }
+        </text>;
+}

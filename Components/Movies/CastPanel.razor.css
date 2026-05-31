@@ -1,0 +1,58 @@
+.cast-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.cast-member {
+    text-align: center;
+    width: 72px;
+}
+
+a.cast-member:hover .cast-avatar,
+a.cast-member:hover .cast-avatar-placeholder {
+    border-color: #cc2200;
+}
+
+a.cast-member:hover .cast-name {
+    color: #cc2200;
+}
+
+.cast-avatar {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 1px solid #2a0000;
+    display: block;
+    margin: 0 auto;
+    filter: saturate(0.65);
+}
+
+.cast-avatar-placeholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 1px solid #2a0000;
+    background: #0e0e0e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    color: #cc2200;
+    font-size: 1.1rem;
+}
+
+.cast-name {
+    font-size: 0.63rem;
+    color: #777;
+    margin-top: 0.35rem;
+    line-height: 1.2;
+}
+
+.cast-character {
+    font-size: 0.58rem;
+    color: #3a3a3a;
+    margin-top: 0.15rem;
+    line-height: 1.2;
+}

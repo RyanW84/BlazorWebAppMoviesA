@@ -1,0 +1,20 @@
+@if (TrailerKey is not null)
+{
+    <div class="terminal-panel">
+        <div class="panel-header">VISUAL RECORD</div>
+        <div class="panel-body">
+            <div class="ratio ratio-16x9 trailer-frame">
+                <iframe src="https://www.youtube.com/embed/@TrailerKey"
+                        title="@MovieTitle trailer"
+                        allowfullscreen
+                        referrerpolicy="strict-origin-when-cross-origin">
+                </iframe>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? TrailerKey  { get; set; }
+    [Parameter] public string? MovieTitle  { get; set; }
+}

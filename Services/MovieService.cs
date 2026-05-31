@@ -6,7 +6,22 @@ namespace BlazorWebAppMovies.Services;
 
 public class MovieService(MovieDbContext db) : IMovieService
 {
-    public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string? genre = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false)
+    // ── Private helpers ──────────────────────────────────────────────────────
+
+    private async Task ReplaceCastAsync(int movieId, List<CastMember> cast)
+    {
+        db.CastMembers.RemoveRange(db.CastMembers.Where(c => c.MovieId == movieId));
+        foreach (var member in cast)
+            member.MovieId = movieId;
+        db.CastMembers.AddRange(cast);
+        await db.SaveChangesAsync();
+    }
+
+    // ── IMovieQueryService ───────────────────────────────────────────────────
+
+    public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(
+        string? search = null, string? genre = null, string sortBy = "title",
+        bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false)
     {
         var query = db.Movies.AsQueryable();
 
@@ -34,77 +49,17 @@ public class MovieService(MovieDbContext db) : IMovieService
 
         query = (sortBy.ToLower(), ascending) switch
         {
-            ("year", true) => query.OrderBy(m => m.ReleaseYear),
-            ("year", false) => query.OrderByDescending(m => m.ReleaseYear),
-            ("rating", true) => query.OrderBy(m => m.Rating),
+            ("year",   true)  => query.OrderBy(m => m.ReleaseYear),
+            ("year",   false) => query.OrderByDescending(m => m.ReleaseYear),
+            ("rating", true)  => query.OrderBy(m => m.Rating),
             ("rating", false) => query.OrderByDescending(m => m.Rating),
-            (_, true) => query.OrderBy(m => m.Title),
-            (_, false) => query.OrderByDescending(m => m.Title),
+            (_,        true)  => query.OrderBy(m => m.Title),
+            (_,        false) => query.OrderByDescending(m => m.Title),
         };
 
-        var total = await query.CountAsync();
+        var total  = await query.CountAsync();
         var movies = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return (movies, total);
-    }
-
-    public async Task ToggleFavoriteAsync(int id)
-    {
-        var movie = await db.Movies.FindAsync(id);
-        if (movie is null) return;
-        movie.IsFavorite = !movie.IsFavorite;
-        await db.SaveChangesAsync();
-    }
-
-    public async Task<Dictionary<int, int>> GetLocalIdsByTmdbIdsAsync(IEnumerable<int> tmdbIds)
-    {
-        var ids = tmdbIds.ToList();
-        return await db.Movies
-            .Where(m => m.TmdbId != null && ids.Contains(m.TmdbId.Value))
-            .ToDictionaryAsync(m => m.TmdbId!.Value, m => m.Id);
-    }
-
-    public async Task SaveCastAsync(int movieId, List<CastMember> cast)
-    {
-        var existing = db.CastMembers.Where(c => c.MovieId == movieId);
-        db.CastMembers.RemoveRange(existing);
-        foreach (var member in cast)
-            member.MovieId = movieId;
-        db.CastMembers.AddRange(cast);
-        await db.SaveChangesAsync();
-    }
-
-    public async Task BackfillPersonIdsAsync(int movieId, int? directorTmdbId, List<CastMember> cast)
-    {
-        var movie = await db.Movies.FindAsync(movieId);
-        if (movie is null) return;
-
-        if (directorTmdbId is not null && movie.DirectorTmdbId is null)
-            movie.DirectorTmdbId = directorTmdbId;
-
-        if (cast.Count > 0)
-        {
-            var existing = db.CastMembers.Where(c => c.MovieId == movieId);
-            db.CastMembers.RemoveRange(existing);
-            foreach (var member in cast)
-                member.MovieId = movieId;
-            db.CastMembers.AddRange(cast);
-        }
-
-        await db.SaveChangesAsync();
-    }
-
-    public async Task<int?> GetRandomIdAsync()
-    {
-        var ids = await db.Movies.Select(m => m.Id).ToListAsync();
-        if (ids.Count == 0) return null;
-        return ids[Random.Shared.Next(ids.Count)];
-    }
-
-    public async Task<(int TotalMovies, int FavoriteMovies)> GetStatsAsync()
-    {
-        var total = await db.Movies.CountAsync();
-        var favorites = await db.Movies.CountAsync(m => m.IsFavorite);
-        return (total, favorites);
     }
 
     public async Task<List<string>> GetGenresAsync() =>
@@ -115,8 +70,56 @@ public class MovieService(MovieDbContext db) : IMovieService
             .OrderBy(g => g)
             .ToListAsync();
 
+    public async Task<int?> GetRandomIdAsync() =>
+        await db.Movies
+            .OrderBy(_ => EF.Functions.Random())
+            .Select(m => (int?)m.Id)
+            .FirstOrDefaultAsync();
+
+    public async Task<(int TotalMovies, int FavoriteMovies)> GetStatsAsync()
+    {
+        var total     = await db.Movies.CountAsync();
+        var favorites = await db.Movies.CountAsync(m => m.IsFavorite);
+        return (total, favorites);
+    }
+
     public async Task<Movie?> GetByIdAsync(int id) =>
         await db.Movies.Include(m => m.Cast.OrderBy(c => c.Order)).FirstOrDefaultAsync(m => m.Id == id);
+
+    public async Task<Dictionary<int, int>> GetLocalIdsByTmdbIdsAsync(IEnumerable<int> tmdbIds)
+    {
+        var ids = tmdbIds.ToList();
+        return await db.Movies
+            .Where(m => m.TmdbId != null && ids.Contains(m.TmdbId.Value))
+            .ToDictionaryAsync(m => m.TmdbId!.Value, m => m.Id);
+    }
+
+    // ── IMovieCommandService ─────────────────────────────────────────────────
+
+    public async Task ToggleFavoriteAsync(int id)
+    {
+        var movie = await db.Movies.FindAsync(id);
+        if (movie is null) return;
+        movie.IsFavorite = !movie.IsFavorite;
+        await db.SaveChangesAsync();
+    }
+
+    public async Task SaveCastAsync(int movieId, List<CastMember> cast) =>
+        await ReplaceCastAsync(movieId, cast);
+
+    public async Task BackfillPersonIdsAsync(int movieId, int? directorTmdbId, List<CastMember> cast)
+    {
+        var movie = await db.Movies.FindAsync(movieId);
+        if (movie is null) return;
+
+        if (directorTmdbId is not null && movie.DirectorTmdbId is null)
+            movie.DirectorTmdbId = directorTmdbId;
+
+        if (cast.Count > 0)
+            await ReplaceCastAsync(movieId, cast);
+        else
+            await db.SaveChangesAsync();
+    }
 
     public async Task AddAsync(Movie movie)
     {

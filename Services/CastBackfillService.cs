@@ -9,13 +9,12 @@ public class CastBackfillService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Wait for the app to fully start before hitting the DB
         await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
 
-        using var scope = scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<MovieDbContext>();
-        var tmdb = scope.ServiceProvider.GetRequiredService<ITmdbService>();
-        var movies = scope.ServiceProvider.GetRequiredService<IMovieService>();
+        using var scope  = scopeFactory.CreateScope();
+        var db           = scope.ServiceProvider.GetRequiredService<MovieDbContext>();
+        var tmdbCredits  = scope.ServiceProvider.GetRequiredService<ITmdbCreditService>();
+        var movieCommands = scope.ServiceProvider.GetRequiredService<IMovieCommandService>();
 
         var missing = await db.Movies
             .Where(m => m.TmdbId != null && !db.CastMembers.Any(c => c.MovieId == m.Id))
@@ -37,10 +36,10 @@ public class CastBackfillService(
 
             try
             {
-                var cast = await tmdb.FetchCastAsync(movie.TmdbId!.Value);
+                var cast = await tmdbCredits.FetchCastAsync(movie.TmdbId!.Value);
                 if (cast.Count > 0)
                 {
-                    await movies.SaveCastAsync(movie.Id, cast);
+                    await movieCommands.SaveCastAsync(movie.Id, cast);
                     done++;
                     logger.LogInformation(
                         "Cast backfill: [{Done}/{Total}] {Title}",
@@ -53,7 +52,7 @@ public class CastBackfillService(
                         movie.Title, movie.TmdbId);
                 }
 
-                await Task.Delay(300, stoppingToken);
+                await Task.Delay(TmdbConstants.ApiDelayMs, stoppingToken);
             }
             catch (OperationCanceledException)
             {

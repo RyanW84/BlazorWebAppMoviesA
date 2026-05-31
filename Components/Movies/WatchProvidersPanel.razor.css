@@ -1,0 +1,35 @@
+.provider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+
+.provider-label {
+    font-size: 0.6rem;
+    color: #cc2200;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    min-width: 3.5rem;
+    flex-shrink: 0;
+}
+
+.provider-logos {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.provider-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 5px;
+    border: 1px solid #1a1a1a;
+    opacity: 0.8;
+    transition: opacity 0.15s, border-color 0.15s;
+}
+
+.provider-logo:hover {
+    opacity: 1;
+    border-color: #cc2200;
+}

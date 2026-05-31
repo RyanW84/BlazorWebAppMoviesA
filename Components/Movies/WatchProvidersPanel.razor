@@ -1,0 +1,61 @@
+@using BlazorWebAppMovies.Models.Tmdb
+@using BlazorWebAppMovies.Services
+
+@if (Providers is not null &&
+     (Providers.Flatrate.Count > 0 || Providers.Rent.Count > 0 || Providers.Buy.Count > 0))
+{
+    <div class="terminal-panel">
+        <div class="panel-header">DISTRIBUTION NETWORK</div>
+        <div class="panel-body">
+            @if (Providers.Flatrate.Count > 0)
+            {
+                <div class="provider-row">
+                    <span class="provider-label">STREAM</span>
+                    <div class="provider-logos">
+                        @foreach (var p in Providers.Flatrate.OrderBy(p => p.DisplayPriority).Take(8))
+                        {
+                            <img src="@TmdbConstants.ProviderLogoUrl(p.LogoPath)"
+                                 alt="@p.Name" title="@p.Name" class="provider-logo" />
+                        }
+                    </div>
+                </div>
+            }
+            @if (Providers.Rent.Count > 0)
+            {
+                <div class="provider-row">
+                    <span class="provider-label">RENT</span>
+                    <div class="provider-logos">
+                        @foreach (var p in Providers.Rent.OrderBy(p => p.DisplayPriority).Take(8))
+                        {
+                            <img src="@TmdbConstants.ProviderLogoUrl(p.LogoPath)"
+                                 alt="@p.Name" title="@p.Name" class="provider-logo" />
+                        }
+                    </div>
+                </div>
+            }
+            @if (Providers.Buy.Count > 0)
+            {
+                <div class="provider-row">
+                    <span class="provider-label">BUY</span>
+                    <div class="provider-logos">
+                        @foreach (var p in Providers.Buy.OrderBy(p => p.DisplayPriority).Take(8))
+                        {
+                            <img src="@TmdbConstants.ProviderLogoUrl(p.LogoPath)"
+                                 alt="@p.Name" title="@p.Name" class="provider-logo" />
+                        }
+                    </div>
+                </div>
+            }
+            @if (Providers.Link is not null)
+            {
+                <div class="mt-2">
+                    <small><a href="@Providers.Link" target="_blank" rel="noopener noreferrer" class="text-muted">// FULL AVAILABILITY ON JUSTWATCH</a></small>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public TmdbWatchRegion? Providers { get; set; }
+}

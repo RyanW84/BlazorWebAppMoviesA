@@ -213,6 +213,60 @@ h1:focus {
     text-align: start;
 }
 
+/* ── Archive terminal chrome (shared by Details + Person pages) ── */
+.archive-terminal {
+    border: 1px solid #1e0000;
+    background: #080808;
+    overflow: hidden;
+}
+
+.archive-header {
+    background: #0d0000;
+    border-bottom: 1px solid #2a0000;
+    padding: 0.45rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.68rem;
+    color: #444;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.record-id { color: #cc2200; }
+
+.header-status {
+    color: #444;
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+}
+
+.status-dot     { color: #22aa44; margin-right: 0.3rem; }
+.status-dot-err { color: #cc2200; margin-right: 0.3rem; }
+
+.terminal-panel { border-top: 1px solid #150000; }
+
+.panel-header {
+    background: #0d0000;
+    border-bottom: 1px solid #150000;
+    padding: 0.4rem 1.25rem;
+    font-size: 0.63rem;
+    color: #4a4a4a;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-header::before {
+    content: '▶';
+    color: #cc2200;
+    font-size: 0.5rem;
+}
+
+.panel-body { padding: 1rem 1.25rem; }
+
 /* ── dl/dt/dd (details page) ───────────────────────────────── */
 dt {
     color: var(--t2-silver);

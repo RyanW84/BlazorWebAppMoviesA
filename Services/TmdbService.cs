@@ -5,8 +5,25 @@ namespace BlazorWebAppMovies.Services;
 
 public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<TmdbService> logger) : ITmdbService
 {
-    private const string ImageBaseUrl = "https://image.tmdb.org/t/p/w500";
     private readonly string _apiKey = config["Tmdb:ApiKey"] ?? "";
+
+    // ── Private helpers ──────────────────────────────────────────────────────
+
+    private static List<CastMember> MapCastMembers(IEnumerable<TmdbCastMember> cast) =>
+        cast
+            .OrderBy(c => c.Order)
+            .Take(TmdbConstants.MaxCastMembers)
+            .Select(c => new CastMember
+            {
+                TmdbPersonId = c.Id,
+                Name         = c.Name,
+                Character    = c.Character,
+                Order        = c.Order,
+                ProfileUrl   = TmdbConstants.PosterUrl(c.ProfilePath)
+            })
+            .ToList();
+
+    // ── ITmdbSearchService ───────────────────────────────────────────────────
 
     public async Task<List<TmdbMovieResult>> SearchAsync(string query)
     {
@@ -37,43 +54,10 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         }
     }
 
-    public async Task<TmdbPersonDetails?> GetPersonDetailsAsync(int personId)
-    {
-        try
-        {
-            var response = await httpClient.GetAsync(
-                $"person/{personId}?api_key={_apiKey}&language=en-US");
-            if (!response.IsSuccessStatusCode) return null;
-            return await response.Content.ReadFromJsonAsync<TmdbPersonDetails>();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "TMDB person details fetch failed for personId={PersonId}", personId);
-            return null;
-        }
-    }
-
-    public async Task<TmdbPersonMovieCreditsResponse?> GetPersonMovieCreditsAsync(int personId)
-    {
-        try
-        {
-            var response = await httpClient.GetAsync(
-                $"person/{personId}/movie_credits?api_key={_apiKey}&language=en-US");
-            if (!response.IsSuccessStatusCode) return null;
-            return await response.Content.ReadFromJsonAsync<TmdbPersonMovieCreditsResponse>();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "TMDB person credits fetch failed for personId={PersonId}", personId);
-            return null;
-        }
-    }
-
     public async Task<List<int>> DiscoverClassicIdsAsync()
     {
         var ids = new HashSet<int>();
 
-        // 5-year windows from 1970–2024, 10 pages each → ~2,200 unique IDs
         (string Start, string End)[] windows =
         [
             ("1970-01-01", "1974-12-31"),
@@ -105,7 +89,7 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                     var result = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
                     foreach (var r in result?.Results ?? [])
                         ids.Add(r.Id);
-                    await Task.Delay(300);
+                    await Task.Delay(TmdbConstants.ApiDelayMs);
                 }
                 catch (Exception ex)
                 {
@@ -118,6 +102,61 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         return [.. ids];
     }
 
+    // ── ITmdbImportService ───────────────────────────────────────────────────
+
+    public async Task<Movie?> ImportAsync(int tmdbId)
+    {
+        logger.LogInformation("TMDB import: tmdbId={TmdbId}", tmdbId);
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"movie/{tmdbId}?api_key={_apiKey}&append_to_response=credits&language=en-US");
+
+            logger.LogInformation("TMDB import response: {StatusCode}", (int)response.StatusCode);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                logger.LogError("TMDB import error: {StatusCode} — {Body}", (int)response.StatusCode, body);
+                return null;
+            }
+
+            var details = await response.Content.ReadFromJsonAsync<TmdbMovieDetails>();
+            if (details is null)
+            {
+                logger.LogWarning("TMDB import: deserialization returned null for tmdbId={TmdbId}", tmdbId);
+                return null;
+            }
+
+            var directorCrew = details.Credits.Crew.FirstOrDefault(c => c.Job == TmdbConstants.DirectorJob);
+            var releaseYear  = int.TryParse(details.ReleaseDate?.Split('-')[0], out var year) ? year : 0;
+
+            logger.LogInformation("TMDB import succeeded: \"{Title}\" ({Year}), director={Director}",
+                details.Title, releaseYear, directorCrew?.Name ?? "unknown");
+
+            return new Movie
+            {
+                Title          = details.Title,
+                ReleaseYear    = releaseYear,
+                Genre          = details.Genres.FirstOrDefault()?.Name,
+                Director       = directorCrew?.Name,
+                DirectorTmdbId = directorCrew?.Id,
+                Rating         = (decimal)Math.Round(details.VoteAverage, 1),
+                Synopsis       = details.Overview,
+                PosterUrl      = TmdbConstants.PosterUrl(details.PosterPath),
+                TmdbId         = details.Id,
+                Cast           = MapCastMembers(details.Credits.Cast)
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB import failed for tmdbId={TmdbId}", tmdbId);
+            return null;
+        }
+    }
+
+    // ── ITmdbCreditService ───────────────────────────────────────────────────
+
     public async Task<(List<CastMember> Cast, int? DirectorTmdbId)> FetchCreditsAsync(int tmdbId)
     {
         try
@@ -129,21 +168,8 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
             var data = await response.Content.ReadFromJsonAsync<TmdbCredits>();
             if (data is null) return ([], null);
 
-            var cast = data.Cast
-                .OrderBy(c => c.Order)
-                .Take(10)
-                .Select(c => new CastMember
-                {
-                    TmdbPersonId = c.Id,
-                    Name = c.Name,
-                    Character = c.Character,
-                    Order = c.Order,
-                    ProfileUrl = c.ProfilePath != null ? $"{ImageBaseUrl}{c.ProfilePath}" : null
-                })
-                .ToList();
-
-            var directorTmdbId = data.Crew.FirstOrDefault(c => c.Job == "Director")?.Id;
-            return (cast, directorTmdbId);
+            var directorTmdbId = data.Crew.FirstOrDefault(c => c.Job == TmdbConstants.DirectorJob)?.Id;
+            return (MapCastMembers(data.Cast), directorTmdbId);
         }
         catch (Exception ex)
         {
@@ -158,6 +184,29 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         return cast;
     }
 
+    // ── ITmdbMediaService ────────────────────────────────────────────────────
+
+    public async Task<string?> GetTrailerKeyAsync(int tmdbId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"movie/{tmdbId}/videos?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+
+            var data = await response.Content.ReadFromJsonAsync<TmdbVideosResponse>();
+            return data?.Results
+                .Where(v => v.Site == TmdbConstants.YouTubeSite && v.Type == TmdbConstants.TrailerType)
+                .OrderByDescending(v => v.Official)
+                .FirstOrDefault()?.Key;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB videos fetch failed for tmdbId={TmdbId}", tmdbId);
+            return null;
+        }
+    }
+
     public async Task<List<TmdbMovieResult>> GetRecommendationsAsync(int tmdbId)
     {
         try
@@ -167,7 +216,7 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
             if (!response.IsSuccessStatusCode) return [];
 
             var data = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
-            return data?.Results.Take(12).ToList() ?? [];
+            return data?.Results.Take(TmdbConstants.MaxRecommendations).ToList() ?? [];
         }
         catch (Exception ex)
         {
@@ -196,89 +245,36 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         }
     }
 
-    public async Task<string?> GetTrailerKeyAsync(int tmdbId)
+    // ── ITmdbPersonService ───────────────────────────────────────────────────
+
+    public async Task<TmdbPersonDetails?> GetPersonDetailsAsync(int personId)
     {
         try
         {
             var response = await httpClient.GetAsync(
-                $"movie/{tmdbId}/videos?api_key={_apiKey}&language=en-US");
+                $"person/{personId}?api_key={_apiKey}&language=en-US");
             if (!response.IsSuccessStatusCode) return null;
-
-            var data = await response.Content.ReadFromJsonAsync<TmdbVideosResponse>();
-            var trailer = data?.Results
-                .Where(v => v.Site == "YouTube" && v.Type == "Trailer")
-                .OrderByDescending(v => v.Official)
-                .FirstOrDefault();
-            return trailer?.Key;
+            return await response.Content.ReadFromJsonAsync<TmdbPersonDetails>();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "TMDB videos fetch failed for tmdbId={TmdbId}", tmdbId);
+            logger.LogError(ex, "TMDB person details fetch failed for personId={PersonId}", personId);
             return null;
         }
     }
 
-    public async Task<Movie?> ImportAsync(int tmdbId)
+    public async Task<TmdbPersonMovieCreditsResponse?> GetPersonMovieCreditsAsync(int personId)
     {
-        logger.LogInformation("TMDB import: tmdbId={TmdbId}", tmdbId);
         try
         {
             var response = await httpClient.GetAsync(
-                $"movie/{tmdbId}?api_key={_apiKey}&append_to_response=credits&language=en-US");
-
-            logger.LogInformation("TMDB import response: {StatusCode}", (int)response.StatusCode);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync();
-                logger.LogError("TMDB import error: {StatusCode} — {Body}", (int)response.StatusCode, body);
-                return null;
-            }
-
-            var details = await response.Content.ReadFromJsonAsync<TmdbMovieDetails>();
-            if (details is null)
-            {
-                logger.LogWarning("TMDB import: deserialization returned null for tmdbId={TmdbId}", tmdbId);
-                return null;
-            }
-
-            var directorCrew = details.Credits.Crew.FirstOrDefault(c => c.Job == "Director");
-            var director = directorCrew?.Name;
-            var directorTmdbId = directorCrew?.Id;
-            var releaseYear = int.TryParse(details.ReleaseDate?.Split('-')[0], out var year) ? year : 0;
-
-            logger.LogInformation("TMDB import succeeded: \"{Title}\" ({Year}), director={Director}", details.Title, releaseYear, director ?? "unknown");
-
-            var cast = details.Credits.Cast
-                .OrderBy(c => c.Order)
-                .Take(10)
-                .Select(c => new CastMember
-                {
-                    TmdbPersonId = c.Id,
-                    Name = c.Name,
-                    Character = c.Character,
-                    Order = c.Order,
-                    ProfileUrl = c.ProfilePath != null ? $"{ImageBaseUrl}{c.ProfilePath}" : null
-                })
-                .ToList();
-
-            return new Movie
-            {
-                Title = details.Title,
-                ReleaseYear = releaseYear,
-                Genre = details.Genres.FirstOrDefault()?.Name,
-                Director = director,
-                DirectorTmdbId = directorTmdbId,
-                Rating = (decimal)Math.Round(details.VoteAverage, 1),
-                Synopsis = details.Overview,
-                PosterUrl = details.PosterPath != null ? $"{ImageBaseUrl}{details.PosterPath}" : null,
-                TmdbId = details.Id,
-                Cast = cast
-            };
+                $"person/{personId}/movie_credits?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<TmdbPersonMovieCreditsResponse>();
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "TMDB import failed for tmdbId={TmdbId}", tmdbId);
+            logger.LogError(ex, "TMDB person credits fetch failed for personId={PersonId}", personId);
             return null;
         }
     }

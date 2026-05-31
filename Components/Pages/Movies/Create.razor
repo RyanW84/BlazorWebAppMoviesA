@@ -1,8 +1,9 @@
 @page "/movies/create"
 @rendermode InteractiveServer
-@inject IMovieService MovieService
-@inject ITmdbService TmdbService
-@inject NavigationManager Nav
+@inject IMovieCommandService MovieCommands
+@inject ITmdbSearchService   TmdbSearch
+@inject ITmdbImportService   TmdbImport
+@inject NavigationManager    Nav
 
 <PageTitle>Add Movie</PageTitle>
 
@@ -25,7 +26,7 @@
                         <div class="card h-100">
                             @if (!string.IsNullOrEmpty(result.PosterPath))
                             {
-                                <img src="https://image.tmdb.org/t/p/w200@(result.PosterPath)" class="card-img-top" style="object-fit:cover;height:200px;" alt="@result.Title" />
+                                <img src="@TmdbConstants.SearchPosterUrl(result.PosterPath)" class="card-img-top" style="object-fit:cover;height:200px;" alt="@result.Title" />
                             }
                             <div class="card-body p-2">
                                 <p class="card-title fw-semibold small mb-1">@result.Title</p>
@@ -113,7 +114,7 @@
     {
         if (string.IsNullOrWhiteSpace(tmdbQuery)) return;
         searching = true;
-        tmdbResults = await TmdbService.SearchAsync(tmdbQuery);
+        tmdbResults = await TmdbSearch.SearchAsync(tmdbQuery);
         searching = false;
     }
 
@@ -121,7 +122,7 @@
     {
         importing = true;
         importError = null;
-        var imported = await TmdbService.ImportAsync(tmdbId);
+        var imported = await TmdbImport.ImportAsync(tmdbId);
         if (imported is not null)
         {
             movie.Title = imported.Title;
@@ -145,7 +146,7 @@
 
     private async Task Save()
     {
-        await MovieService.AddAsync(movie);
+        await MovieCommands.AddAsync(movie);
         Nav.NavigateTo("/movies");
     }
 }

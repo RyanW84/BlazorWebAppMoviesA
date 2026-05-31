@@ -1,0 +1,45 @@
+@using BlazorWebAppMovies.Models.Tmdb
+@using BlazorWebAppMovies.Services
+
+@if (Recommendations.Count > 0)
+{
+    <div class="terminal-panel">
+        <div class="panel-header">RELATED FILES</div>
+        <div class="panel-body">
+            <div class="rec-strip">
+                @foreach (var rec in Recommendations)
+                {
+                    var recYear   = rec.ReleaseDate?.Split('-')[0];
+                    var posterSrc = TmdbConstants.ThumbUrl(rec.PosterPath);
+
+                    @if (LocalIds.TryGetValue(rec.Id, out var localId))
+                    {
+                        <a href="/movies/@localId" class="rec-card text-decoration-none">
+                            @RecPoster(posterSrc, rec.Title)
+                            <div class="rec-title">@rec.Title</div>
+                            @if (recYear is not null) { <div class="rec-year">@recYear</div> }
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="rec-card rec-card--unlinked">
+                            @RecPoster(posterSrc, rec.Title)
+                            <div class="rec-title">@rec.Title</div>
+                            @if (recYear is not null) { <div class="rec-year">@recYear</div> }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public List<TmdbMovieResult>     Recommendations { get; set; } = [];
+    [Parameter, EditorRequired] public Dictionary<int, int>      LocalIds        { get; set; } = [];
+
+    private RenderFragment RecPoster(string? src, string title) =>
+        src is not null
+            ? @<img src="@src" alt="@title" class="rec-poster" />
+            : @<div class="rec-poster-placeholder">@title</div>;
+}

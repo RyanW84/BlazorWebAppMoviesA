@@ -1,6 +1,6 @@
 @page "/person/{TmdbPersonId:int}"
-@inject ITmdbService TmdbService
-@inject IMovieService MovieService
+@inject ITmdbPersonService       TmdbPerson
+@inject IMovieImportOrchestrator Importer
 
 <PageTitle>@(person?.Name ?? "Personnel File")</PageTitle>
 
@@ -32,7 +32,7 @@ else
                     <div class="person-photo-frame">
                         @if (!string.IsNullOrEmpty(person.ProfilePath))
                         {
-                            <img src="https://image.tmdb.org/t/p/w185@(person.ProfilePath)"
+                            <img src="@TmdbConstants.PersonPhotoUrl(person.ProfilePath)"
                                  alt="@person.Name" class="person-photo" />
                         }
                         else
@@ -52,7 +52,7 @@ else
                     }
                     @if (!string.IsNullOrEmpty(person.Biography))
                     {
-                        <p class="person-bio mt-2">@(person.Biography.Length > 500 ? person.Biography[..500] + "…" : person.Biography)</p>
+                        <p class="person-bio mt-2">@(person.Biography.Length > TmdbConstants.MaxBioLength ? person.Biography[..TmdbConstants.MaxBioLength] + "…" : person.Biography)</p>
                     }
                     <div class="mt-3">
                         <a href="/movies" class="btn btn-outline-secondary btn-sm">← ARCHIVES</a>
@@ -70,10 +70,8 @@ else
                     <div class="filmography-grid">
                         @foreach (var credit in actingCredits)
                         {
-                            var year = credit.ReleaseDate?.Length >= 4 ? credit.ReleaseDate[..4] : null;
-                            var posterSrc = credit.PosterPath != null
-                                ? $"https://image.tmdb.org/t/p/w154{credit.PosterPath}"
-                                : null;
+                            var year      = credit.ReleaseDate?.Length >= 4 ? credit.ReleaseDate[..4] : null;
+                            var posterSrc = TmdbConstants.ThumbUrl(credit.PosterPath);
 
                             @if (localIds.TryGetValue(credit.Id, out var localId))
                             {
@@ -109,10 +107,8 @@ else
                     <div class="filmography-grid">
                         @foreach (var credit in directingCredits)
                         {
-                            var year = credit.ReleaseDate?.Length >= 4 ? credit.ReleaseDate[..4] : null;
-                            var posterSrc = credit.PosterPath != null
-                                ? $"https://image.tmdb.org/t/p/w154{credit.PosterPath}"
-                                : null;
+                            var year      = credit.ReleaseDate?.Length >= 4 ? credit.ReleaseDate[..4] : null;
+                            var posterSrc = TmdbConstants.ThumbUrl(credit.PosterPath);
 
                             @if (localIds.TryGetValue(credit.Id, out var localId))
                             {
@@ -145,52 +141,36 @@ else
     [Parameter] public int TmdbPersonId { get; set; }
 
     private TmdbPersonDetails? person;
-    private List<TmdbPersonCastCredit> actingCredits = [];
-    private List<TmdbPersonCrewCredit> directingCredits = [];
-    private Dictionary<int, int> localIds = [];
+    private List<TmdbPersonCastCredit>  actingCredits   = [];
+    private List<TmdbPersonCrewCredit>  directingCredits = [];
+    private Dictionary<int, int>        localIds         = [];
 
     protected override async Task OnInitializedAsync()
     {
-        var detailsTask = TmdbService.GetPersonDetailsAsync(TmdbPersonId);
-        var creditsTask = TmdbService.GetPersonMovieCreditsAsync(TmdbPersonId);
+        var detailsTask = TmdbPerson.GetPersonDetailsAsync(TmdbPersonId);
+        var creditsTask = TmdbPerson.GetPersonMovieCreditsAsync(TmdbPersonId);
         await Task.WhenAll(detailsTask, creditsTask);
 
         person = detailsTask.Result;
         var credits = creditsTask.Result;
         if (credits is null) return;
 
-        // Acting: notable films, sorted by popularity (vote count)
         actingCredits = credits.Cast
-            .Where(c => c.VoteCount >= 10 && !string.IsNullOrEmpty(c.ReleaseDate))
+            .Where(c => c.VoteCount >= TmdbConstants.MinVoteCount && !string.IsNullOrEmpty(c.ReleaseDate))
             .OrderByDescending(c => c.VoteCount)
-            .Take(24)
+            .Take(TmdbConstants.MaxActingCredits)
             .ToList();
 
-        // Directing: Director credits only, sorted by release date
         directingCredits = credits.Crew
-            .Where(c => c.Job == "Director" && c.VoteCount >= 10 && !string.IsNullOrEmpty(c.ReleaseDate))
+            .Where(c => c.Job == TmdbConstants.DirectorJob && c.VoteCount >= TmdbConstants.MinVoteCount && !string.IsNullOrEmpty(c.ReleaseDate))
             .OrderByDescending(c => c.ReleaseDate)
             .DistinctBy(c => c.Id)
             .ToList();
 
         var allTmdbIds = actingCredits.Select(c => c.Id)
             .Concat(directingCredits.Select(c => c.Id))
-            .Distinct()
-            .ToList();
+            .Distinct();
 
-        localIds = await MovieService.GetLocalIdsByTmdbIdsAsync(allTmdbIds);
-
-        // Import any films not yet in the DB
-        var actingToImport = actingCredits.Where(c => !localIds.ContainsKey(c.Id)).Select(c => c.Id);
-        var directingToImport = directingCredits.Where(c => !localIds.ContainsKey(c.Id)).Select(c => c.Id);
-        var toImport = actingToImport.Concat(directingToImport).Distinct().ToList();
-
-        if (toImport.Count > 0)
-        {
-            var fetched = await Task.WhenAll(toImport.Select(id => TmdbService.ImportAsync(id)));
-            foreach (var movie in fetched.OfType<Movie>())
-                await MovieService.AddIfNotExistsAsync(movie);
-            localIds = await MovieService.GetLocalIdsByTmdbIdsAsync(allTmdbIds);
-        }
+        localIds = await Importer.EnsureLocalAsync(allTmdbIds);
     }
 }
