@@ -50,7 +50,7 @@
                     }
                     else
                     {
-                        <span class="index-name index-name--unlinked">@p.Name</span>
+                        <a href="/movies?search=@Uri.EscapeDataString(p.Name)" class="index-name index-name--unlinked">@p.Name</a>
                     }
                     <span class="index-count">@p.MovieCount film@(p.MovieCount == 1 ? "" : "s")</span>
                 </div>

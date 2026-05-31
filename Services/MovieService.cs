@@ -37,6 +37,7 @@ public class MovieService(MovieDbContext db) : IMovieService
                     m.Title.ToLower().Contains(t) ||
                     (m.Director != null && m.Director.ToLower().Contains(t)) ||
                     (m.Genre != null && m.Genre.ToLower().Contains(t)) ||
+                    m.Cast.Any(c => c.Name.ToLower().Contains(t)) ||
                     (isYear && m.ReleaseYear == y));
             }
         }
