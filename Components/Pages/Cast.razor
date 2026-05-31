@@ -8,7 +8,18 @@
 
     <div class="archive-header">
         <span>SKYNET ARCHIVE // PERSONNEL INDEX</span>
-        <span class="header-status"><span class="status-dot">◉</span> @cast.Count RECORDS</span>
+        <span class="header-status"><span class="status-dot">◉</span> @totalCount RECORDS</span>
+    </div>
+
+    <div class="letter-bar">
+        <button class="letter-btn @(activeLetter is null && string.IsNullOrEmpty(search) ? "letter-btn--active" : "")"
+                @onclick="() => SetLetter(null)">ALL</button>
+        @foreach (var l in Alphabet)
+        {
+            var hasData = availableLetters.Contains(l);
+            <button class="letter-btn @(activeLetter == l ? "letter-btn--active" : "") @(hasData ? "" : "letter-btn--empty")"
+                    @onclick="() => SetLetter(l)">@l</button>
+        }
     </div>
 
     <div class="index-toolbar">
@@ -16,16 +27,21 @@
                value="@search"
                @oninput="OnSearch"
                placeholder="Search personnel…" />
+        <select class="form-select form-select-sm index-pagesize" value="@pageSize" @onchange="OnPageSizeChange">
+            <option value="25">25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+        </select>
     </div>
 
-    @if (cast.Count == 0)
+    @if (items.Count == 0)
     {
         <div class="index-empty">// NO RECORDS MATCH QUERY</div>
     }
     else
     {
         <div class="index-grid">
-            @foreach (var p in cast)
+            @foreach (var p in items)
             {
                 <div class="index-card">
                     @if (p.TmdbPersonId is not null)
@@ -40,21 +56,71 @@
                 </div>
             }
         </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="index-pager">
+                <button class="pager-btn" disabled="@(page == 1)" @onclick="() => GoToPage(page - 1)">&#8249;</button>
+                <span class="pager-info">@(page) / @totalPages</span>
+                <button class="pager-btn" disabled="@(page == totalPages)" @onclick="() => GoToPage(page + 1)">&#8250;</button>
+            </div>
+        }
     }
 
 </div>
 
 @code {
-    private List<PersonSummary> cast = [];
-    private string search = "";
+    private static readonly char[] Alphabet = Enumerable.Range('A', 26).Select(i => (char)i).ToArray();
 
-    protected override async Task OnInitializedAsync() => await Load();
+    private List<PersonSummary> items      = [];
+    private HashSet<char> availableLetters = [];
+    private char?   activeLetter = null;
+    private string  search       = "";
+    private int     page         = 1;
+    private int     pageSize     = 50;
+    private int     totalCount   = 0;
+    private int     totalPages   => (int)Math.Ceiling((double)totalCount / pageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        availableLetters = await MovieQuery.GetCastLettersAsync();
+        await Load();
+    }
+
+    private async Task SetLetter(char? l)
+    {
+        activeLetter = l;
+        search = "";
+        page = 1;
+        await Load();
+    }
 
     private async Task OnSearch(ChangeEventArgs e)
     {
         search = e.Value?.ToString() ?? "";
+        activeLetter = null;
+        page = 1;
         await Load();
     }
 
-    private async Task Load() => cast = await MovieQuery.GetCastAsync(search);
+    private async Task OnPageSizeChange(ChangeEventArgs e)
+    {
+        pageSize = int.Parse(e.Value?.ToString() ?? "50");
+        page = 1;
+        await Load();
+    }
+
+    private async Task GoToPage(int p)
+    {
+        if (p < 1 || p > totalPages) return;
+        page = p;
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        var result = await MovieQuery.GetCastAsync(activeLetter, search, page, pageSize);
+        items      = result.Items;
+        totalCount = result.TotalCount;
+    }
 }

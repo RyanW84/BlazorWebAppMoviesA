@@ -1,13 +1,65 @@
+/* ── Letter bar ────────────────────────────────────────────── */
+.letter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #150000;
+    background: #090909;
+}
+
+.letter-btn {
+    min-width: 2rem;
+    height: 1.8rem;
+    padding: 0 0.35rem;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.06em;
+    background: transparent;
+    border: 1px solid #1e1e1e;
+    color: #555;
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s, background-color 0.12s;
+}
+
+.letter-btn:hover {
+    color: #cc2200;
+    border-color: #cc2200;
+    background: rgba(204, 34, 0, 0.06);
+}
+
+.letter-btn--active {
+    color: #cc2200;
+    border-color: #cc2200;
+    background: rgba(204, 34, 0, 0.12);
+}
+
+.letter-btn--empty {
+    color: #282828;
+    border-color: #141414;
+    cursor: default;
+}
+
+.letter-btn--empty:hover {
+    color: #282828;
+    border-color: #141414;
+    background: transparent;
+}
+
+/* ── Toolbar ───────────────────────────────────────────────── */
 .index-toolbar {
-    padding: 0.75rem 1.25rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.6rem 1rem;
     border-bottom: 1px solid #150000;
     background: #0a0a0a;
 }
 
-.index-search {
-    max-width: 320px;
-}
+.index-search  { max-width: 260px; }
+.index-pagesize { width: auto; }
 
+/* ── Empty state ───────────────────────────────────────────── */
 .index-empty {
     padding: 2rem 1.25rem;
     font-size: 0.72rem;
@@ -15,6 +67,7 @@
     letter-spacing: 0.12em;
 }
 
+/* ── Results grid ──────────────────────────────────────────── */
 .index-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -25,24 +78,22 @@
 
 .index-card {
     background: #080808;
-    padding: 0.65rem 1.25rem;
+    padding: 0.6rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 0.5rem;
-    transition: background-color 0.12s;
+    transition: background-color 0.1s;
 }
 
-.index-card:hover {
-    background: #0e0000;
-}
+.index-card:hover { background: #0e0000; }
 
 .index-name {
     font-size: 0.82rem;
     color: #c8c8c8;
     text-decoration: none;
     border-bottom: 1px dotted #2a0000;
-    transition: color 0.12s, border-color 0.12s;
+    transition: color 0.1s, border-color 0.1s;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -54,13 +105,53 @@
 }
 
 .index-name--unlinked {
-    border-bottom: none;
-    opacity: 0.6;
+    border-bottom-style: dashed;
+    opacity: 0.7;
 }
 
 .index-count {
     font-size: 0.6rem;
     color: #333;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     flex-shrink: 0;
+}
+
+/* ── Pagination ────────────────────────────────────────────── */
+.index-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-top: 1px solid #150000;
+    background: #090909;
+}
+
+.pager-btn {
+    width: 2rem;
+    height: 2rem;
+    background: transparent;
+    border: 1px solid #222;
+    color: #666;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.1s, border-color 0.1s;
+}
+
+.pager-btn:hover:not([disabled]) {
+    color: #cc2200;
+    border-color: #cc2200;
+}
+
+.pager-btn[disabled] {
+    opacity: 0.2;
+    cursor: default;
+}
+
+.pager-info {
+    font-size: 0.65rem;
+    color: #444;
+    letter-spacing: 0.12em;
+    font-family: 'Orbitron', monospace;
 }

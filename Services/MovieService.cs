@@ -94,38 +94,83 @@ public class MovieService(MovieDbContext db) : IMovieService
             .ToDictionaryAsync(m => m.TmdbId!.Value, m => m.Id);
     }
 
-    public async Task<List<PersonSummary>> GetDirectorsAsync(string? search = null)
+    public async Task<HashSet<char>> GetDirectorLettersAsync()
+    {
+        var firsts = await db.Movies
+            .Where(m => !string.IsNullOrEmpty(m.Director))
+            .Select(m => m.Director!.Substring(0, 1).ToUpper())
+            .Distinct()
+            .ToListAsync();
+
+        return firsts
+            .Where(s => s.Length == 1 && char.IsLetter(s[0]))
+            .Select(s => char.ToUpperInvariant(s[0]))
+            .ToHashSet();
+    }
+
+    public async Task<HashSet<char>> GetCastLettersAsync()
+    {
+        var firsts = await db.CastMembers
+            .Select(c => c.Name.Substring(0, 1).ToUpper())
+            .Distinct()
+            .ToListAsync();
+
+        return firsts
+            .Where(s => s.Length == 1 && char.IsLetter(s[0]))
+            .Select(s => char.ToUpperInvariant(s[0]))
+            .ToHashSet();
+    }
+
+    public async Task<(List<PersonSummary> Items, int TotalCount)> GetDirectorsAsync(
+        char? letter = null, string? search = null, int page = 1, int pageSize = 50)
     {
         var query = db.Movies.Where(m => !string.IsNullOrEmpty(m.Director));
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (letter.HasValue)
+        {
+            var prefix = letter.Value.ToString().ToUpperInvariant();
+            query = query.Where(m => m.Director!.ToUpper().StartsWith(prefix));
+        }
+        else if (!string.IsNullOrWhiteSpace(search))
+        {
             query = query.Where(m => m.Director!.ToLower().Contains(search.ToLower()));
+        }
 
-        // Project to anonymous type (EF Core can translate this), then map to record in memory
-        var rows = await query
+        // Project to anonymous type for SQL translation, then map to record in memory
+        var grouped = query
             .GroupBy(m => new { m.Director, m.DirectorTmdbId })
             .Select(g => new { Name = g.Key.Director!, TmdbId = g.Key.DirectorTmdbId, Count = g.Count() })
-            .OrderBy(g => g.Name)
-            .ToListAsync();
+            .OrderBy(g => g.Name);
 
-        return rows.Select(r => new PersonSummary(r.Name, r.TmdbId, r.Count)).ToList();
+        var total = await grouped.CountAsync();
+        var rows  = await grouped.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return (rows.Select(r => new PersonSummary(r.Name, r.TmdbId, r.Count)).ToList(), total);
     }
 
-    public async Task<List<PersonSummary>> GetCastAsync(string? search = null)
+    public async Task<(List<PersonSummary> Items, int TotalCount)> GetCastAsync(
+        char? letter = null, string? search = null, int page = 1, int pageSize = 50)
     {
         var query = db.CastMembers.AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (letter.HasValue)
+        {
+            var prefix = letter.Value.ToString().ToUpperInvariant();
+            query = query.Where(c => c.Name.ToUpper().StartsWith(prefix));
+        }
+        else if (!string.IsNullOrWhiteSpace(search))
+        {
             query = query.Where(c => c.Name.ToLower().Contains(search.ToLower()));
+        }
 
-        // Project to anonymous type (EF Core can translate this), then map to record in memory
-        var rows = await query
+        // Project to anonymous type for SQL translation, then map to record in memory
+        var grouped = query
             .GroupBy(c => new { c.Name, c.TmdbPersonId })
             .Select(g => new { Name = g.Key.Name, TmdbId = g.Key.TmdbPersonId, Count = g.Count() })
-            .OrderBy(g => g.Name)
-            .ToListAsync();
+            .OrderBy(g => g.Name);
 
-        return rows.Select(r => new PersonSummary(r.Name, r.TmdbId, r.Count)).ToList();
+        var total = await grouped.CountAsync();
+        var rows  = await grouped.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return (rows.Select(r => new PersonSummary(r.Name, r.TmdbId, r.Count)).ToList(), total);
     }
 
     // ── IMovieCommandService ─────────────────────────────────────────────────
