@@ -6,39 +6,6 @@ namespace BlazorWebAppMovies.Services;
 
 public class MovieService(MovieDbContext db) : IMovieService
 {
-    public async Task<List<Movie>> GetAllAsync(string? search = null, string sortBy = "title", bool ascending = true)
-    {
-        var query = db.Movies.AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var terms = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var term in terms)
-            {
-                var t = term.ToLower();
-                var isYear = int.TryParse(term, out var parsedYear);
-                var y = parsedYear;
-                query = query.Where(m =>
-                    m.Title.ToLower().Contains(t) ||
-                    (m.Director != null && m.Director.ToLower().Contains(t)) ||
-                    (m.Genre != null && m.Genre.ToLower().Contains(t)) ||
-                    (isYear && m.ReleaseYear == y));
-            }
-        }
-
-        query = (sortBy.ToLower(), ascending) switch
-        {
-            ("year", true) => query.OrderBy(m => m.ReleaseYear),
-            ("year", false) => query.OrderByDescending(m => m.ReleaseYear),
-            ("rating", true) => query.OrderBy(m => m.Rating),
-            ("rating", false) => query.OrderByDescending(m => m.Rating),
-            (_, true) => query.OrderBy(m => m.Title),
-            (_, false) => query.OrderByDescending(m => m.Title),
-        };
-
-        return await query.ToListAsync();
-    }
-
     public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string? genre = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false)
     {
         var query = db.Movies.AsQueryable();
@@ -111,6 +78,13 @@ public class MovieService(MovieDbContext db) : IMovieService
         var ids = await db.Movies.Select(m => m.Id).ToListAsync();
         if (ids.Count == 0) return null;
         return ids[Random.Shared.Next(ids.Count)];
+    }
+
+    public async Task<(int TotalMovies, int FavoriteMovies)> GetStatsAsync()
+    {
+        var total = await db.Movies.CountAsync();
+        var favorites = await db.Movies.CountAsync(m => m.IsFavorite);
+        return (total, favorites);
     }
 
     public async Task<List<string>> GetGenresAsync() =>

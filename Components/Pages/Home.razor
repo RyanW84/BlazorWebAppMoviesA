@@ -1,4 +1,5 @@
 @page "/"
+@inject IMovieService MovieService
 
 <PageTitle>Skynet Archives</PageTitle>
 
@@ -39,19 +40,29 @@
 
 <div class="stat-strip">
     <div class="stat">
-        <span class="stat-label">CLASSIFICATION</span>
-        <span class="stat-value">TOP SECRET</span>
+        <span class="stat-label">RECORDS</span>
+        <span class="stat-value">@totalMovies</span>
     </div>
     <div class="stat">
         <span class="stat-label">NETWORK</span>
         <span class="stat-value">SKYNET v2.0</span>
     </div>
     <div class="stat">
-        <span class="stat-label">THREAT LEVEL</span>
-        <span class="stat-value">MINIMAL</span>
+        <span class="stat-label">CLASSIFIED</span>
+        <span class="stat-value">@favoriteMovies</span>
     </div>
     <div class="stat">
         <span class="stat-label">JUDGMENT DAY</span>
         <span class="stat-value">AUG 29, 1997</span>
     </div>
 </div>
+
+@code {
+    private int totalMovies;
+    private int favoriteMovies;
+
+    protected override async Task OnInitializedAsync()
+    {
+        (totalMovies, favoriteMovies) = await MovieService.GetStatsAsync();
+    }
+}

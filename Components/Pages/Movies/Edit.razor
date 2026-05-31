@@ -31,6 +31,11 @@ else
                 </div>
             }
 
+            <div class="col-12">
+                <label class="form-label">Poster URL</label>
+                <InputText class="form-control" @bind-Value="movie.PosterUrl" />
+            </div>
+
             <div class="col-md-4">
                 <label class="form-label">Release Year</label>
                 <InputNumber class="form-control" @bind-Value="movie.ReleaseYear" />
@@ -76,7 +81,7 @@ else
         if (movie is not null)
         {
             await MovieService.UpdateAsync(movie);
-            Nav.NavigateTo("/movies");
+            Nav.NavigateTo($"/movies/{Id}");
         }
     }
 }
