@@ -39,6 +39,11 @@ namespace BlazorWebAppMovies.Models.Movie
 
         public int? RuntimeMinutes { get; set; }
 
+        public int? CollectionId { get; set; }
+
+        [StringLength(200)]
+        public string? CollectionName { get; set; }
+
         public bool CastBackfilled { get; set; }
 
         public List<CastMember> Cast { get; set; } = [];

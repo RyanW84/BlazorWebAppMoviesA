@@ -1,0 +1,48 @@
+@using BlazorWebAppMovies.Models.Tmdb
+@using BlazorWebAppMovies.Services
+
+@if (Collection is not null && Collection.Parts.Count > 1)
+{
+    <div class="terminal-panel">
+        <div class="panel-header">COLLECTION // @Collection.Name.ToUpper()</div>
+        <div class="panel-body">
+            <div class="rec-strip">
+                @foreach (var part in Collection.Parts.OrderBy(p => p.ReleaseDate))
+                {
+                    var year      = part.ReleaseDate?.Split('-')[0];
+                    var posterSrc = TmdbConstants.ThumbUrl(part.PosterPath);
+                    var isCurrent = part.Id == CurrentTmdbId;
+
+                    @if (LocalIds.TryGetValue(part.Id, out var localId) && !isCurrent)
+                    {
+                        <a href="/movies/@localId" class="rec-card text-decoration-none">
+                            @Poster(posterSrc, part.Title)
+                            <div class="rec-title">@part.Title</div>
+                            @if (year is not null) { <div class="rec-year">@year</div> }
+                        </a>
+                    }
+                    else
+                    {
+                        <div class="rec-card @(isCurrent ? "rec-card--current" : "rec-card--unlinked")">
+                            @Poster(posterSrc, part.Title)
+                            <div class="rec-title">@part.Title</div>
+                            @if (year is not null) { <div class="rec-year">@year</div> }
+                            @if (isCurrent) { <div class="rec-year" style="color:#cc2200">▶ NOW VIEWING</div> }
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public TmdbCollectionDetails?  Collection    { get; set; }
+    [Parameter, EditorRequired] public Dictionary<int, int>    LocalIds      { get; set; } = [];
+    [Parameter, EditorRequired] public int                     CurrentTmdbId { get; set; }
+
+    private RenderFragment Poster(string? src, string title) =>
+        src is not null
+            ? @<img src="@src" alt="@title" class="rec-poster" />
+            : @<div class="rec-poster-placeholder">@title</div>;
+}

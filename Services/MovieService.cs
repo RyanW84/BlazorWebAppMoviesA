@@ -22,7 +22,7 @@ public class MovieService(MovieDbContext db) : IMovieService
     public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(
         string? search = null, string? genre = null, string sortBy = "title",
         bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false,
-        WatchStatus? watchStatus = null)
+        WatchStatus? watchStatus = null, int? yearFrom = null, int? yearTo = null, decimal? ratingMin = null)
     {
         var query = db.Movies.AsNoTracking();
 
@@ -51,6 +51,15 @@ public class MovieService(MovieDbContext db) : IMovieService
 
         if (watchStatus.HasValue)
             query = query.Where(m => m.WatchStatus == watchStatus.Value);
+
+        if (yearFrom.HasValue)
+            query = query.Where(m => m.ReleaseYear >= yearFrom.Value);
+
+        if (yearTo.HasValue)
+            query = query.Where(m => m.ReleaseYear <= yearTo.Value);
+
+        if (ratingMin.HasValue)
+            query = query.Where(m => m.Rating >= ratingMin.Value);
 
         query = (sortBy.ToLower(), ascending) switch
         {
@@ -179,6 +188,54 @@ public class MovieService(MovieDbContext db) : IMovieService
         var rows  = await grouped.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return (rows.Select(r => new PersonSummary(r.Name, r.TmdbId, r.Count)).ToList(), total);
     }
+
+    public async Task<List<(string Genre, int Count)>> GetStatsByGenreAsync() =>
+        (await db.Movies
+            .Where(m => m.Genre != null && m.Genre != "")
+            .GroupBy(m => m.Genre!)
+            .Select(g => new { Genre = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .ToListAsync())
+        .Select(g => (g.Genre, g.Count))
+        .ToList();
+
+    public async Task<List<(int Decade, int Count)>> GetStatsByDecadeAsync() =>
+        (await db.Movies
+            .GroupBy(m => m.ReleaseYear / 10 * 10)
+            .Select(g => new { Decade = g.Key, Count = g.Count() })
+            .OrderBy(g => g.Decade)
+            .ToListAsync())
+        .Select(g => (g.Decade, g.Count))
+        .ToList();
+
+    public async Task<List<(decimal Bucket, int Count)>> GetStatsByRatingBucketAsync() =>
+        (await db.Movies
+            .Where(m => m.Rating > 0)
+            .GroupBy(m => (int)m.Rating)
+            .Select(g => new { Bucket = g.Key, Count = g.Count() })
+            .OrderBy(g => g.Bucket)
+            .ToListAsync())
+        .Select(g => ((decimal)g.Bucket, g.Count))
+        .ToList();
+
+    public async Task<List<(WatchStatus Status, int Count)>> GetStatsByWatchStatusAsync() =>
+        (await db.Movies
+            .GroupBy(m => m.WatchStatus)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync())
+        .Select(g => (g.Status, g.Count))
+        .ToList();
+
+    public async Task<List<(string Director, int Count)>> GetTopDirectorsAsync(int n = 10) =>
+        (await db.Movies
+            .Where(m => m.Director != null && m.Director != "")
+            .GroupBy(m => m.Director!)
+            .Select(g => new { Director = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .Take(n)
+            .ToListAsync())
+        .Select(g => (g.Director, g.Count))
+        .ToList();
 
     // ── IMovieCommandService ─────────────────────────────────────────────────
 

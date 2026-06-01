@@ -1,0 +1,190 @@
+@page "/stats"
+@inject IMovieService MovieService
+
+<PageTitle>Archive Stats</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // STATISTICAL ANALYSIS</span>
+        <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+    </div>
+
+    <div class="archive-body">
+
+        @if (loading)
+        {
+            <p class="text-muted">// COMPILING DATA…</p>
+        }
+        else
+        {
+            <div class="row g-4">
+
+                <!-- Summary strip -->
+                <div class="col-12">
+                    <div class="stats-summary-strip">
+                        <div class="stat-card">
+                            <div class="stat-card-label">TOTAL RECORDS</div>
+                            <div class="stat-card-value">@totalMovies</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-label">CLASSIFIED</div>
+                            <div class="stat-card-value">@favoriteMovies</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-label">WATCHED</div>
+                            <div class="stat-card-value">@(watchStatusCounts.FirstOrDefault(w => w.Status == WatchStatus.Watched).Count)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-label">WANT TO WATCH</div>
+                            <div class="stat-card-value">@(watchStatusCounts.FirstOrDefault(w => w.Status == WatchStatus.WantToWatch).Count)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-label">GENRES</div>
+                            <div class="stat-card-value">@byGenre.Count</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-card-label">AVG TMDB RATING</div>
+                            <div class="stat-card-value">@avgRating.ToString("F1")</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- By genre -->
+                <div class="col-md-6">
+                    <div class="terminal-panel">
+                        <div class="panel-header">CLASSIFICATION BY GENRE</div>
+                        <div class="panel-body">
+                            @foreach (var (genre, count) in byGenre)
+                            {
+                                var pct = maxGenreCount > 0 ? (double)count / maxGenreCount * 100 : 0;
+                                <div class="bar-row">
+                                    <span class="bar-label" title="@genre">@(genre.Length > 18 ? genre[..18] + "…" : genre)</span>
+                                    <div class="bar-track">
+                                        <div class="bar-fill" style="width:@pct.ToString("F1")%"></div>
+                                    </div>
+                                    <span class="bar-count">@count</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- By decade -->
+                <div class="col-md-6">
+                    <div class="terminal-panel">
+                        <div class="panel-header">RECORDS BY DECADE</div>
+                        <div class="panel-body">
+                            @foreach (var (decade, count) in byDecade)
+                            {
+                                var pct = maxDecadeCount > 0 ? (double)count / maxDecadeCount * 100 : 0;
+                                <div class="bar-row">
+                                    <span class="bar-label">@decade s</span>
+                                    <div class="bar-track">
+                                        <div class="bar-fill bar-fill--decade" style="width:@pct.ToString("F1")%"></div>
+                                    </div>
+                                    <span class="bar-count">@count</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TMDB rating distribution -->
+                <div class="col-md-6">
+                    <div class="terminal-panel">
+                        <div class="panel-header">TMDB RATING DISTRIBUTION</div>
+                        <div class="panel-body">
+                            @foreach (var (bucket, count) in byRating)
+                            {
+                                var pct = maxRatingCount > 0 ? (double)count / maxRatingCount * 100 : 0;
+                                <div class="bar-row">
+                                    <span class="bar-label">@bucket–@(bucket + 1)</span>
+                                    <div class="bar-track">
+                                        <div class="bar-fill bar-fill--rating" style="width:@pct.ToString("F1")%"></div>
+                                    </div>
+                                    <span class="bar-count">@count</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top directors -->
+                <div class="col-md-6">
+                    <div class="terminal-panel">
+                        <div class="panel-header">TOP ARCHITECTS (DIRECTORS)</div>
+                        <div class="panel-body">
+                            @foreach (var (director, count) in topDirectors)
+                            {
+                                var pct = maxDirectorCount > 0 ? (double)count / maxDirectorCount * 100 : 0;
+                                <div class="bar-row">
+                                    <span class="bar-label" title="@director">@(director.Length > 18 ? director[..18] + "…" : director)</span>
+                                    <div class="bar-track">
+                                        <div class="bar-fill bar-fill--director" style="width:@pct.ToString("F1")%"></div>
+                                    </div>
+                                    <span class="bar-count">@count</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="mt-3">
+                <a href="/movies" class="btn btn-outline-secondary btn-sm">← BACK TO ARCHIVE</a>
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    private bool loading = true;
+
+    private int totalMovies;
+    private int favoriteMovies;
+    private decimal avgRating;
+
+    private List<(string Genre, int Count)>        byGenre         = [];
+    private List<(int Decade, int Count)>           byDecade        = [];
+    private List<(decimal Bucket, int Count)>       byRating        = [];
+    private List<(WatchStatus Status, int Count)>   watchStatusCounts = [];
+    private List<(string Director, int Count)>      topDirectors    = [];
+
+    private int maxGenreCount;
+    private int maxDecadeCount;
+    private int maxRatingCount;
+    private int maxDirectorCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var statsTask      = MovieService.GetStatsAsync();
+        var genreTask      = MovieService.GetStatsByGenreAsync();
+        var decadeTask     = MovieService.GetStatsByDecadeAsync();
+        var ratingTask     = MovieService.GetStatsByRatingBucketAsync();
+        var watchTask      = MovieService.GetStatsByWatchStatusAsync();
+        var directorTask   = MovieService.GetTopDirectorsAsync(10);
+
+        await Task.WhenAll(statsTask, genreTask, decadeTask, ratingTask, watchTask, directorTask);
+
+        (totalMovies, favoriteMovies) = statsTask.Result;
+        byGenre       = genreTask.Result;
+        byDecade      = decadeTask.Result;
+        byRating      = ratingTask.Result;
+        watchStatusCounts = watchTask.Result;
+        topDirectors  = directorTask.Result;
+
+        maxGenreCount    = byGenre.Count    > 0 ? byGenre.Max(g => g.Count)    : 0;
+        maxDecadeCount   = byDecade.Count   > 0 ? byDecade.Max(g => g.Count)   : 0;
+        maxRatingCount   = byRating.Count   > 0 ? byRating.Max(g => g.Count)   : 0;
+        maxDirectorCount = topDirectors.Count > 0 ? topDirectors.Max(g => g.Count) : 0;
+
+        avgRating = totalMovies > 0
+            ? Math.Round(byRating.Sum(b => b.Bucket * b.Count) / totalMovies, 1)
+            : 0;
+
+        loading = false;
+    }
+}

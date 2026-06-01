@@ -1,0 +1,78 @@
+.archive-body {
+    padding: 1.5rem 1.25rem;
+}
+
+/* Summary strip */
+.stats-summary-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card {
+    flex: 1 1 130px;
+    background: #0d0000;
+    border: 1px solid #2a0000;
+    padding: 0.75rem 1rem;
+    text-align: center;
+}
+
+.stat-card-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.stat-card-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #cc2200;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Bar chart rows */
+.bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+    font-size: 0.75rem;
+}
+
+.bar-label {
+    width: 8rem;
+    flex-shrink: 0;
+    color: #888;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-track {
+    flex: 1;
+    height: 12px;
+    background: #130000;
+    border: 1px solid #1e0000;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: #cc2200;
+    transition: width 0.4s ease;
+}
+
+.bar-fill--decade   { background: #884400; }
+.bar-fill--rating   { background: #228844; }
+.bar-fill--director { background: #224488; }
+
+.bar-count {
+    width: 2.5rem;
+    text-align: right;
+    color: #555;
+    font-variant-numeric: tabular-nums;
+}

@@ -52,6 +52,9 @@ namespace BlazorWebAppMovies.Models.Tmdb
         [JsonPropertyName("runtime")]
         public int? Runtime { get; set; }
 
+        [JsonPropertyName("belongs_to_collection")]
+        public TmdbCollection? BelongsToCollection { get; set; }
+
         [JsonPropertyName("genres")]
         public List<TmdbGenre> Genres { get; set; } = [];
 
@@ -234,5 +237,29 @@ namespace BlazorWebAppMovies.Models.Tmdb
 
         [JsonPropertyName("official")]
         public bool Official { get; set; }
+    }
+
+    public class TmdbCollection
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = "";
+
+        [JsonPropertyName("poster_path")]
+        public string? PosterPath { get; set; }
+    }
+
+    public class TmdbCollectionDetails
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = "";
+
+        [JsonPropertyName("parts")]
+        public List<TmdbMovieResult> Parts { get; set; } = [];
     }
 }

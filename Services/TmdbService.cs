@@ -146,6 +146,8 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                 PosterUrl      = TmdbConstants.PosterUrl(details.PosterPath),
                 TmdbId         = details.Id,
                 RuntimeMinutes = details.Runtime,
+                CollectionId   = details.BelongsToCollection?.Id,
+                CollectionName = details.BelongsToCollection?.Name,
                 Cast           = MapCastMembers(details.Credits.Cast)
             };
         }
@@ -242,6 +244,22 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         catch (Exception ex)
         {
             logger.LogError(ex, "TMDB watch providers fetch failed for tmdbId={TmdbId}", tmdbId);
+            return null;
+        }
+    }
+
+    public async Task<TmdbCollectionDetails?> GetCollectionAsync(int collectionId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"collection/{collectionId}?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<TmdbCollectionDetails>();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB collection fetch failed for collectionId={CollectionId}", collectionId);
             return null;
         }
     }

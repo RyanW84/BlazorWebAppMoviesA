@@ -2,12 +2,15 @@
 @rendermode InteractiveServer
 @inject IMovieService MovieService
 @inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <PageTitle>Movies</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Movies</h1>
     <div class="d-flex gap-2">
+        <a href="/export/movies.csv" class="btn btn-outline-secondary" download>Export CSV</a>
         <button class="btn btn-outline-secondary" @onclick="SurpriseMe">Surprise me</button>
         <button class="btn @(favoritesOnly ? "btn-danger" : "btn-outline-danger")" @onclick="ToggleFavoritesFilter" title="Favorites">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.5.5a.5.5 0 0 0-1 0v.518A7 7 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518A7 7 0 0 0 7.5 14.982V15.5a.5.5 0 0 0 1 0v-.518A7 7 0 0 0 14.982 8.5H15.5a.5.5 0 0 0 0-1h-.518A7 7 0 0 0 8.5 1.018V.5ZM7 2.028V3.5a.5.5 0 0 0 1 0V2.028A6 6 0 0 1 13.972 8H12.5a.5.5 0 0 0 0 1h1.472A6 6 0 0 1 8 13.972V12.5a.5.5 0 0 0-1 0v1.472A6 6 0 0 1 2.028 8H3.5a.5.5 0 0 0 0-1H2.028A6 6 0 0 1 7 2.028ZM8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
@@ -16,8 +19,8 @@
     </div>
 </div>
 
-<div class="d-flex gap-2 mb-3">
-    <input class="form-control" value="@searchTerm" @oninput="OnSearchInput" placeholder="Search title, director, genre…" />
+<div class="d-flex gap-2 mb-2 flex-wrap">
+    <input id="movie-search" class="form-control" value="@searchTerm" @oninput="OnSearchInput" placeholder="Search title, director, genre… ( / )" />
     <select class="form-select" style="width:auto" value="@selectedGenre" @onchange="OnGenreChange">
         <option value="">All genres</option>
         @foreach (var g in genres)
@@ -37,6 +40,27 @@
         <option value="50">50 / page</option>
         <option value="100">100 / page</option>
     </select>
+</div>
+<div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+    <span class="text-muted" style="font-size:0.8rem;white-space:nowrap;">Year:</span>
+    <input type="number" class="form-control form-control-sm" style="width:90px" placeholder="From"
+           value="@yearFrom" @onchange="OnYearFromChange" min="1888" max="2100" />
+    <span class="text-muted" style="font-size:0.8rem;">–</span>
+    <input type="number" class="form-control form-control-sm" style="width:90px" placeholder="To"
+           value="@yearTo" @onchange="OnYearToChange" min="1888" max="2100" />
+    <span class="text-muted ms-2" style="font-size:0.8rem;white-space:nowrap;">Min rating:</span>
+    <select class="form-select form-select-sm" style="width:auto" value="@ratingMin" @onchange="OnRatingMinChange">
+        <option value="">Any</option>
+        <option value="5">5+</option>
+        <option value="6">6+</option>
+        <option value="7">7+</option>
+        <option value="8">8+</option>
+        <option value="9">9+</option>
+    </select>
+    @if (yearFrom.HasValue || yearTo.HasValue || ratingMin.HasValue)
+    {
+        <button class="btn btn-sm btn-outline-secondary" @onclick="ClearRangeFilters">Clear</button>
+    }
 </div>
 
 @if (totalCount == 0)
@@ -147,9 +171,13 @@ else
     [Parameter][SupplyParameterFromQuery(Name = "page")]     public int?    PageParam         { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "size")]     public int?    SizeParam         { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "favorites")]public bool    FavoritesParam    { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "yfrom")]    public int?    YearFromParam     { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "yto")]      public int?    YearToParam       { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "rmin")]     public decimal? RatingMinParam   { get; set; }
 
     private List<Movie> movies = [];
     private List<string> genres = [];
+    private CancellationTokenSource? _searchCts;
     private string searchTerm = "";
     private string selectedGenre = "";
     private string selectedWatchStatus = "";
@@ -159,18 +187,24 @@ else
     private int currentPage = 1;
     private int pageSize = 25;
     private int totalCount = 0;
+    private int? yearFrom;
+    private int? yearTo;
+    private decimal? ratingMin;
     private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
 
     protected override async Task OnInitializedAsync()
     {
-        searchTerm         = SearchParam ?? "";
-        selectedGenre      = GenreParam  ?? "";
-        selectedWatchStatus= StatusParam ?? "";
-        sortBy             = SortParam   ?? "title";
-        ascending          = AscParam    ?? true;
-        currentPage        = PageParam   ?? 1;
-        pageSize           = SizeParam   ?? 25;
-        favoritesOnly      = FavoritesParam;
+        searchTerm          = SearchParam    ?? "";
+        selectedGenre       = GenreParam     ?? "";
+        selectedWatchStatus = StatusParam    ?? "";
+        sortBy              = SortParam      ?? "title";
+        ascending           = AscParam       ?? true;
+        currentPage         = PageParam      ?? 1;
+        pageSize            = SizeParam      ?? 25;
+        favoritesOnly       = FavoritesParam;
+        yearFrom            = YearFromParam;
+        yearTo              = YearToParam;
+        ratingMin           = RatingMinParam;
         genres = await MovieService.GetGenresAsync();
         await LoadMovies();
     }
@@ -178,7 +212,7 @@ else
     private async Task LoadMovies()
     {
         WatchStatus? watchStatusFilter = Enum.TryParse<WatchStatus>(selectedWatchStatus, out var parsed) ? parsed : null;
-        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter);
+        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter, yearFrom, yearTo, ratingMin);
         movies = result.Movies;
         totalCount = result.TotalCount;
     }
@@ -195,6 +229,9 @@ else
             ["page"]      = currentPage == 1                           ? null : (object?)currentPage,
             ["size"]      = pageSize == 25                             ? null : (object?)pageSize,
             ["favorites"] = favoritesOnly                              ? (object?)true : null,
+            ["yfrom"]     = yearFrom,
+            ["yto"]       = yearTo,
+            ["rmin"]      = ratingMin,
         });
         Nav.NavigateTo(url, replace: true);
     }
@@ -209,7 +246,14 @@ else
     private async Task OnSearchInput(ChangeEventArgs e)
     {
         searchTerm = e.Value?.ToString() ?? "";
-        await ResetAndReload();
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(300, _searchCts.Token);
+            await ResetAndReload();
+        }
+        catch (TaskCanceledException) { }
     }
 
     private async Task OnGenreChange(ChangeEventArgs e)
@@ -221,6 +265,32 @@ else
     private async Task OnWatchStatusChange(ChangeEventArgs e)
     {
         selectedWatchStatus = e.Value?.ToString() ?? "";
+        await ResetAndReload();
+    }
+
+    private async Task OnYearFromChange(ChangeEventArgs e)
+    {
+        yearFrom = int.TryParse(e.Value?.ToString(), out var y) ? y : null;
+        await ResetAndReload();
+    }
+
+    private async Task OnYearToChange(ChangeEventArgs e)
+    {
+        yearTo = int.TryParse(e.Value?.ToString(), out var y) ? y : null;
+        await ResetAndReload();
+    }
+
+    private async Task OnRatingMinChange(ChangeEventArgs e)
+    {
+        ratingMin = decimal.TryParse(e.Value?.ToString(), out var r) ? r : null;
+        await ResetAndReload();
+    }
+
+    private async Task ClearRangeFilters()
+    {
+        yearFrom = null;
+        yearTo = null;
+        ratingMin = null;
         await ResetAndReload();
     }
 
@@ -261,6 +331,30 @@ else
     {
         var id = await MovieService.GetRandomIdAsync();
         if (id is not null) Nav.NavigateTo($"/movies/{id}");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("eval", """
+                (function() {
+                    window.__movieSearchHandler = function(e) {
+                        if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'SELECT') {
+                            e.preventDefault();
+                            document.getElementById('movie-search')?.focus();
+                        }
+                    };
+                    document.addEventListener('keydown', window.__movieSearchHandler);
+                })();
+                """);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await JS.InvokeVoidAsync("eval",
+            "if (window.__movieSearchHandler) { document.removeEventListener('keydown', window.__movieSearchHandler); delete window.__movieSearchHandler; }");
     }
 
     private string SortIndicator(string column) => sortBy == column ? (ascending ? " ↑" : " ↓") : "";

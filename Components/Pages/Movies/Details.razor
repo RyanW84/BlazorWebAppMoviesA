@@ -156,6 +156,7 @@ else
         </div>
 
         <CastPanel Cast="@movie.Cast" />
+        <CollectionPanel Collection="@collection" LocalIds="@collectionLocalIds" CurrentTmdbId="@(movie.TmdbId ?? 0)" />
         <WatchProvidersPanel Providers="@watchProviders" />
         <TrailerPanel TrailerKey="@trailerKey" MovieTitle="@movie.Title" />
         <RecommendationsPanel Recommendations="@recommendations" LocalIds="@recommendationLocalIds" />
@@ -170,15 +171,17 @@ else
     private TmdbWatchRegion? watchProviders;
     private List<TmdbMovieResult> recommendations = [];
     private Dictionary<int, int> recommendationLocalIds = [];
+    private TmdbCollectionDetails? collection;
+    private Dictionary<int, int> collectionLocalIds = [];
 
     protected override async Task OnInitializedAsync()
     {
         movie = await MovieQuery.GetByIdAsync(Id);
         if (movie?.TmdbId is not int tmdbId) return;
 
-        var trailerTask   = TmdbMedia.GetTrailerKeyAsync(tmdbId);
-        var providersTask = TmdbMedia.GetWatchProvidersAsync(tmdbId);
-        var recsTask      = TmdbMedia.GetRecommendationsAsync(tmdbId);
+        var trailerTask    = TmdbMedia.GetTrailerKeyAsync(tmdbId);
+        var providersTask  = TmdbMedia.GetWatchProvidersAsync(tmdbId);
+        var recsTask       = TmdbMedia.GetRecommendationsAsync(tmdbId);
 
         bool needsCredits = movie.Cast.Count == 0
             || movie.Cast.Any(c => c.TmdbPersonId is null)
@@ -188,11 +191,16 @@ else
             ? TmdbCredits.FetchCreditsAsync(tmdbId)
             : null;
 
+        Task<TmdbCollectionDetails?>? collectionTask = movie.CollectionId is int colId
+            ? TmdbMedia.GetCollectionAsync(colId)
+            : null;
+
         var tasks = new List<Task> { trailerTask, providersTask, recsTask };
         if (creditsTask is not null) tasks.Add(creditsTask);
+        if (collectionTask is not null) tasks.Add(collectionTask);
         await Task.WhenAll(tasks);
 
-        trailerKey    = trailerTask.Result;
+        trailerKey     = trailerTask.Result;
         watchProviders = providersTask.Result;
         recommendations = recsTask.Result;
 
@@ -201,6 +209,16 @@ else
             var (fetchedCast, directorTmdbId) = creditsTask.Result;
             await MovieCommands.BackfillPersonIdsAsync(movie.Id, directorTmdbId, fetchedCast);
             movie = await MovieQuery.GetByIdAsync(Id);
+        }
+
+        if (collectionTask is not null)
+        {
+            collection = collectionTask.Result;
+            if (collection is not null)
+            {
+                var colTmdbIds = collection.Parts.Select(p => p.Id);
+                collectionLocalIds = await MovieQuery.GetLocalIdsByTmdbIdsAsync(colTmdbIds);
+            }
         }
 
         if (recommendations.Count > 0)
