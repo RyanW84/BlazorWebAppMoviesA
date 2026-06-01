@@ -22,7 +22,8 @@ public class MovieService(MovieDbContext db) : IMovieService
     public async Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(
         string? search = null, string? genre = null, string sortBy = "title",
         bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false,
-        WatchStatus? watchStatus = null, int? yearFrom = null, int? yearTo = null, decimal? ratingMin = null)
+        WatchStatus? watchStatus = null, int? yearFrom = null, int? yearTo = null, decimal? ratingMin = null,
+        int? collectionId = null)
     {
         var query = db.Movies.AsNoTracking();
 
@@ -60,6 +61,9 @@ public class MovieService(MovieDbContext db) : IMovieService
 
         if (ratingMin.HasValue)
             query = query.Where(m => m.Rating >= ratingMin.Value);
+
+        if (collectionId.HasValue)
+            query = query.Where(m => m.CollectionId == collectionId.Value);
 
         query = (sortBy.ToLower(), ascending) switch
         {
@@ -237,6 +241,51 @@ public class MovieService(MovieDbContext db) : IMovieService
         .Select(g => (g.Director, g.Count))
         .ToList();
 
+    public async Task<List<(string Actor, int Count)>> GetTopCastAsync(int n = 10) =>
+        (await db.CastMembers
+            .GroupBy(c => c.Name)
+            .Select(g => new { Actor = g.Key, Count = g.Count() })
+            .OrderByDescending(g => g.Count)
+            .Take(n)
+            .ToListAsync())
+        .Select(g => (g.Actor, g.Count))
+        .ToList();
+
+    public async Task<List<(int Stars, int Count)>> GetStatsByPersonalRatingAsync() =>
+        (await db.Movies
+            .Where(m => m.PersonalRating != null)
+            .GroupBy(m => m.PersonalRating!)
+            .Select(g => new { Stars = g.Key, Count = g.Count() })
+            .OrderBy(g => g.Stars)
+            .ToListAsync())
+        .Select(g => (g.Stars!.Value, g.Count))
+        .ToList();
+
+    public async Task<(int TotalMinutes, int WatchedMinutes)> GetRuntimeStatsAsync()
+    {
+        var result = await db.Movies
+            .Where(m => m.RuntimeMinutes != null)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total   = g.Sum(m => m.RuntimeMinutes!.Value),
+                Watched = g.Sum(m => m.WatchStatus == WatchStatus.Watched || m.WatchStatus == WatchStatus.Rewatching
+                    ? m.RuntimeMinutes!.Value : 0),
+            })
+            .FirstOrDefaultAsync();
+        return (result?.Total ?? 0, result?.Watched ?? 0);
+    }
+
+    public async Task<List<(int CollectionId, string CollectionName, int Count)>> GetCollectionsAsync() =>
+        (await db.Movies
+            .Where(m => m.CollectionId != null && m.CollectionName != null)
+            .GroupBy(m => new { m.CollectionId, m.CollectionName })
+            .Select(g => new { g.Key.CollectionId, g.Key.CollectionName, Count = g.Count() })
+            .OrderBy(g => g.CollectionName)
+            .ToListAsync())
+        .Select(g => (g.CollectionId!.Value, g.CollectionName!, g.Count))
+        .ToList();
+
     // ── IMovieCommandService ─────────────────────────────────────────────────
 
     public async Task ToggleFavoriteAsync(int id) =>
@@ -253,6 +302,21 @@ public class MovieService(MovieDbContext db) : IMovieService
         await db.Movies
             .Where(m => m.Id == id)
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.PersonalRating, rating));
+
+    public async Task SetWatchDateAsync(int id, DateTime? date) =>
+        await db.Movies
+            .Where(m => m.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.DateWatched, date));
+
+    public async Task SetNotesAsync(int id, string? notes) =>
+        await db.Movies
+            .Where(m => m.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.Notes, notes));
+
+    public async Task SetWatchlistPriorityAsync(int id, int? priority) =>
+        await db.Movies
+            .Where(m => m.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(m => m.WatchlistPriority, priority));
 
     public async Task SaveCastAsync(int movieId, List<CastMember> cast) =>
         await ReplaceCastAsync(movieId, cast);

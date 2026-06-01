@@ -173,7 +173,8 @@ else
     [Parameter][SupplyParameterFromQuery(Name = "favorites")]public bool    FavoritesParam    { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "yfrom")]    public int?    YearFromParam     { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "yto")]      public int?    YearToParam       { get; set; }
-    [Parameter][SupplyParameterFromQuery(Name = "rmin")]     public decimal? RatingMinParam   { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "rmin")]       public decimal? RatingMinParam    { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "collection")] public int?     CollectionParam   { get; set; }
 
     private List<Movie> movies = [];
     private List<string> genres = [];
@@ -190,6 +191,7 @@ else
     private int? yearFrom;
     private int? yearTo;
     private decimal? ratingMin;
+    private int? collectionId;
     private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
 
     protected override async Task OnInitializedAsync()
@@ -205,6 +207,7 @@ else
         yearFrom            = YearFromParam;
         yearTo              = YearToParam;
         ratingMin           = RatingMinParam;
+        collectionId        = CollectionParam;
         genres = await MovieService.GetGenresAsync();
         await LoadMovies();
     }
@@ -212,7 +215,7 @@ else
     private async Task LoadMovies()
     {
         WatchStatus? watchStatusFilter = Enum.TryParse<WatchStatus>(selectedWatchStatus, out var parsed) ? parsed : null;
-        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter, yearFrom, yearTo, ratingMin);
+        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter, yearFrom, yearTo, ratingMin, collectionId);
         movies = result.Movies;
         totalCount = result.TotalCount;
     }
@@ -229,9 +232,10 @@ else
             ["page"]      = currentPage == 1                           ? null : (object?)currentPage,
             ["size"]      = pageSize == 25                             ? null : (object?)pageSize,
             ["favorites"] = favoritesOnly                              ? (object?)true : null,
-            ["yfrom"]     = yearFrom,
-            ["yto"]       = yearTo,
-            ["rmin"]      = ratingMin,
+            ["yfrom"]      = yearFrom,
+            ["yto"]        = yearTo,
+            ["rmin"]       = ratingMin,
+            ["collection"] = collectionId,
         });
         Nav.NavigateTo(url, replace: true);
     }

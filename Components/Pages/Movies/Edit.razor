@@ -60,6 +60,18 @@ else
                 <label class="form-label">Synopsis</label>
                 <InputTextArea class="form-control" @bind-Value="movie.Synopsis" rows="4" />
             </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Date Watched</label>
+                <input type="date" class="form-control"
+                       value="@(movie.DateWatched?.ToString("yyyy-MM-dd") ?? "")"
+                       @onchange="OnDateWatchedChange" />
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Personal Notes</label>
+                <InputTextArea class="form-control" @bind-Value="movie.Notes" rows="4" />
+            </div>
         </div>
 
         <div class="d-flex gap-2 mt-4">
@@ -75,6 +87,13 @@ else
 
     protected override async Task OnInitializedAsync() =>
         movie = await MovieService.GetByIdAsync(Id);
+
+    private void OnDateWatchedChange(ChangeEventArgs e)
+    {
+        if (movie is null) return;
+        var raw = e.Value?.ToString();
+        movie.DateWatched = string.IsNullOrEmpty(raw) ? null : DateTime.Parse(raw);
+    }
 
     private async Task Save()
     {

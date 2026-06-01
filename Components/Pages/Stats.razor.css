@@ -69,6 +69,7 @@
 .bar-fill--decade   { background: #884400; }
 .bar-fill--rating   { background: #228844; }
 .bar-fill--director { background: #224488; }
+.bar-fill--cast     { background: #774488; }
 
 .bar-count {
     width: 2.5rem;

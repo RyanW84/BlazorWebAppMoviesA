@@ -1,0 +1,26 @@
+.collection-card {
+    background: #0d0000;
+    border: 1px solid #2a0000;
+    padding: 1rem 1.25rem;
+    transition: border-color 0.2s, background 0.2s;
+    height: 100%;
+}
+
+.collection-card:hover {
+    border-color: #cc2200;
+    background: #130000;
+}
+
+.collection-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #cc2200;
+    margin-bottom: 0.25rem;
+}
+
+.collection-count {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: #555;
+}

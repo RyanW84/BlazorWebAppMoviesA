@@ -10,7 +10,6 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddDbContext<MovieDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("MovieDb")));
 
-// Movie services — register concrete class once, expose through all three interfaces
 builder.Services.AddScoped<MovieService>();
 builder.Services.AddScoped<IMovieService>(sp      => sp.GetRequiredService<MovieService>());
 builder.Services.AddScoped<IMovieQueryService>(sp  => sp.GetRequiredService<MovieService>());
@@ -19,7 +18,6 @@ builder.Services.AddScoped<IMovieCommandService>(sp => sp.GetRequiredService<Mov
 builder.Services.AddScoped<IMovieImportOrchestrator, MovieImportOrchestrator>();
 builder.Services.AddHostedService<CastBackfillService>();
 
-// TMDB — typed HttpClient registered once; focused interfaces resolved from it
 builder.Services.AddHttpClient<TmdbService>(client =>
 {
     client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
@@ -86,7 +84,6 @@ app.MapGet("/export/movies.csv", async (BlazorWebAppMovies.Data.MovieDbContext d
     }
 });
 
-// Seed after the server is running so the DI scope is fully initialised
 app.Lifetime.ApplicationStarted.Register(() =>
     _ = Task.Run(() => MovieSeeder.SeedAsync(app.Services)));
 

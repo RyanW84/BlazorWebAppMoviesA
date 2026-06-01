@@ -9,6 +9,9 @@ public interface IMovieCommandService
     Task SetPersonalRatingAsync(int id, int? rating);
     Task SaveCastAsync(int movieId, List<CastMember> cast);
     Task BackfillPersonIdsAsync(int movieId, int? directorTmdbId, List<CastMember> cast);
+    Task SetWatchDateAsync(int id, DateTime? date);
+    Task SetNotesAsync(int id, string? notes);
+    Task SetWatchlistPriorityAsync(int id, int? priority);
     Task AddAsync(Movie movie);
     Task AddIfNotExistsAsync(Movie movie);
     Task UpdateAsync(Movie movie);

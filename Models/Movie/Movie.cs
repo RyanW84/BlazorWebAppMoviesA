@@ -46,6 +46,12 @@ namespace BlazorWebAppMovies.Models.Movie
 
         public bool CastBackfilled { get; set; }
 
+        public DateTime? DateWatched { get; set; }
+
+        public string? Notes { get; set; }
+
+        public int? WatchlistPriority { get; set; }
+
         public List<CastMember> Cast { get; set; } = [];
     }
 }

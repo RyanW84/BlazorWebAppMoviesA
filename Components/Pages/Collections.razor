@@ -1,0 +1,58 @@
+@page "/collections"
+@inject IMovieQueryService MovieQuery
+
+<PageTitle>Collections</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // COLLECTION INDEX</span>
+        <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+    </div>
+
+    <div class="archive-body">
+
+        @if (loading)
+        {
+            <p class="text-muted">// COMPILING DATA…</p>
+        }
+        else if (collections.Count == 0)
+        {
+            <p class="text-muted">// NO COLLECTIONS INDEXED — IMPORT MOVIES FROM TMDB TO POPULATE</p>
+        }
+        else
+        {
+            <p class="text-muted mb-3" style="font-size:0.8rem;">@collections.Count COLLECTION@(collections.Count == 1 ? "" : "S") INDEXED</p>
+
+            <div class="row g-3">
+                @foreach (var (colId, colName, count) in collections)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <a href="/movies?collection=@colId" class="text-decoration-none">
+                            <div class="collection-card">
+                                <div class="collection-name">@colName.ToUpper()</div>
+                                <div class="collection-count">@count FILE@(count == 1 ? "" : "S") INDEXED</div>
+                            </div>
+                        </a>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-4">
+                <a href="/movies" class="btn btn-outline-secondary btn-sm">← BACK TO ARCHIVE</a>
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    private bool loading = true;
+    private List<(int CollectionId, string CollectionName, int Count)> collections = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        collections = await MovieQuery.GetCollectionsAsync();
+        loading = false;
+    }
+}

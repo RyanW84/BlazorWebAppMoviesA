@@ -113,6 +113,19 @@ else
                                 }
                             </span>
                         </div>
+                        <div class="field-row">
+                            <span class="field-label">DATE WATCHED</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value d-flex align-items-center gap-2">
+                                <input type="date" class="form-control form-control-sm" style="width:auto;background:#111;color:#ccc;border-color:#333;"
+                                       value="@(movie.DateWatched?.ToString("yyyy-MM-dd") ?? "")"
+                                       @onchange="OnDateWatchedChange" />
+                                @if (movie.DateWatched.HasValue)
+                                {
+                                    <button class="btn btn-link p-0 text-muted" style="font-size:0.75rem;" @onclick="() => SetWatchDate(null)">clear</button>
+                                }
+                            </span>
+                        </div>
                     </div>
 
                     @if (!string.IsNullOrEmpty(movie.Synopsis))
@@ -122,6 +135,34 @@ else
                             <p class="synopsis-text">@movie.Synopsis</p>
                         </div>
                     }
+
+                    <div class="synopsis-block mt-3">
+                        <div class="synopsis-header d-flex justify-content-between align-items-center">
+                            <span>// PERSONAL NOTES</span>
+                            @if (!editingNotes)
+                            {
+                                <button class="btn btn-link p-0 text-muted" style="font-size:0.75rem;" @onclick="StartEditNotes">EDIT</button>
+                            }
+                        </div>
+                        @if (editingNotes)
+                        {
+                            <textarea class="form-control mt-1" rows="4"
+                                      style="background:#111;color:#ccc;border-color:#333;font-family:monospace;"
+                                      @bind="notesBuffer"></textarea>
+                            <div class="d-flex gap-2 mt-1">
+                                <button class="btn btn-sm btn-primary" @onclick="SaveNotes">SAVE</button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="CancelEditNotes">CANCEL</button>
+                            </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(movie.Notes))
+                        {
+                            <p class="synopsis-text">@movie.Notes</p>
+                        }
+                        else
+                        {
+                            <p class="synopsis-text text-muted">// NO NOTES RECORDED</p>
+                        }
+                    </div>
 
                     <div class="action-bar">
                         <a href="/movies" class="btn btn-outline-secondary btn-sm">← BACK</a>
@@ -173,6 +214,8 @@ else
     private Dictionary<int, int> recommendationLocalIds = [];
     private TmdbCollectionDetails? collection;
     private Dictionary<int, int> collectionLocalIds = [];
+    private bool editingNotes;
+    private string notesBuffer = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -247,6 +290,40 @@ else
         if (movie is null) return;
         await MovieCommands.SetWatchStatusAsync(movie.Id, status);
         movie.WatchStatus = status;
+    }
+
+    private async Task OnDateWatchedChange(ChangeEventArgs e)
+    {
+        var raw = e.Value?.ToString();
+        var date = string.IsNullOrEmpty(raw) ? (DateTime?)null : DateTime.Parse(raw);
+        await SetWatchDate(date);
+    }
+
+    private async Task SetWatchDate(DateTime? date)
+    {
+        if (movie is null) return;
+        await MovieCommands.SetWatchDateAsync(movie.Id, date);
+        movie.DateWatched = date;
+    }
+
+    private void StartEditNotes()
+    {
+        notesBuffer = movie?.Notes ?? "";
+        editingNotes = true;
+    }
+
+    private async Task SaveNotes()
+    {
+        if (movie is null) return;
+        await MovieCommands.SetNotesAsync(movie.Id, string.IsNullOrWhiteSpace(notesBuffer) ? null : notesBuffer);
+        movie.Notes = string.IsNullOrWhiteSpace(notesBuffer) ? null : notesBuffer;
+        editingNotes = false;
+    }
+
+    private void CancelEditNotes()
+    {
+        editingNotes = false;
+        notesBuffer = "";
     }
 
     private static string WatchStatusLabel(WatchStatus s) => s switch
