@@ -60,6 +60,10 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
 
         (string Start, string End)[] windows =
         [
+            ("1888-01-01", "1929-12-31"),
+            ("1930-01-01", "1949-12-31"),
+            ("1950-01-01", "1959-12-31"),
+            ("1960-01-01", "1969-12-31"),
             ("1970-01-01", "1974-12-31"),
             ("1975-01-01", "1979-12-31"),
             ("1980-01-01", "1984-12-31"),
@@ -71,6 +75,7 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
             ("2010-01-01", "2014-12-31"),
             ("2015-01-01", "2019-12-31"),
             ("2020-01-01", "2024-12-31"),
+            ("2025-01-01", "2029-12-31"),
         ];
 
         foreach (var (start, end) in windows)

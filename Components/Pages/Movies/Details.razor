@@ -339,7 +339,7 @@ else
             if (collection is not null)
             {
                 var colTmdbIds = collection.Parts.Select(p => p.Id);
-                collectionLocalIds = await MovieQuery.GetLocalIdsByTmdbIdsAsync(colTmdbIds);
+                collectionLocalIds = await Importer.EnsureLocalAsync(colTmdbIds);
             }
         }
 

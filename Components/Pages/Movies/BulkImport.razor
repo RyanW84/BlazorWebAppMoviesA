@@ -107,6 +107,46 @@
             <p class="text-muted" style="font-size:0.8rem;">// ENTER A SEARCH TERM TO SCAN TMDB</p>
         }
 
+        <div class="bi-divider">// OR DISCOVER ALL TMDB</div>
+
+        @if (!discoverMode)
+        {
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-outline-danger btn-sm" @onclick="StartDiscoverAll">
+                    DISCOVER ALL
+                </button>
+                <span class="text-muted" style="font-size:0.75rem;">// PULLS ALL HIGH-VOTE TITLES FROM TMDB (1888–PRESENT)</span>
+            </div>
+        }
+        else
+        {
+            <div class="bi-progress-panel">
+                <div class="bi-progress-header">// ARCHIVE INGESTION — @discoverPhase</div>
+                @if (discoverTotal > 0)
+                {
+                    <div class="bi-progress-counter">@discoverImported / @discoverTotal</div>
+                }
+                @foreach (var entry in discoverLog.TakeLast(60))
+                {
+                    <div class="bi-log-row @(entry.Ok ? "bi-log--ok" : "bi-log--err")">
+                        @(entry.Ok ? "✓" : "✗") @entry.Title
+                    </div>
+                }
+                @if (discovering && discoverTotal > 0 && discoverImported < discoverTotal)
+                {
+                    <div class="text-muted mt-2" style="font-size:0.75rem;">// @discoverImported / @discoverTotal COMPLETE…</div>
+                    <button class="btn btn-sm btn-outline-secondary mt-2" @onclick="AbortDiscover">ABORT</button>
+                }
+                @if (!discovering)
+                {
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="ResetDiscover">NEW OPERATION</button>
+                        <a href="/movies" class="btn btn-primary btn-sm">← BACK TO ARCHIVE</a>
+                    </div>
+                }
+            </div>
+        }
+
     </div>
 </div>
 
@@ -195,5 +235,75 @@
         importLog.Clear();
         importing = false;
         query = "";
+    }
+
+    // ── Discover-all ─────────────────────────────────────────────────────────
+
+    private bool discoverMode;
+    private bool discovering;
+    private string discoverPhase = "";
+    private int discoverTotal;
+    private int discoverImported;
+    private List<ImportEntry> discoverLog = [];
+    private CancellationTokenSource? _discoverCts;
+
+    private async Task StartDiscoverAll()
+    {
+        discoverMode   = true;
+        discovering    = true;
+        discoverPhase  = "SCANNING TMDB ARCHIVE…";
+        discoverTotal  = 0;
+        discoverImported = 0;
+        discoverLog.Clear();
+        _discoverCts = new CancellationTokenSource();
+        StateHasChanged();
+
+        var ids      = await TmdbSearch.DiscoverClassicIdsAsync();
+        var localMap = await MovieQuery.GetLocalIdsByTmdbIdsAsync(ids);
+        var toImport = ids.Where(id => !localMap.ContainsKey(id)).ToList();
+
+        discoverTotal = toImport.Count;
+        discoverPhase = $"FOUND {ids.Count} TITLES — {toImport.Count} TO IMPORT";
+        StateHasChanged();
+
+        foreach (var id in toImport)
+        {
+            if (_discoverCts.Token.IsCancellationRequested) break;
+
+            var movie = await TmdbImport.ImportAsync(id);
+            if (movie is not null)
+            {
+                await MovieCommands.AddIfNotExistsAsync(movie);
+                discoverLog.Add(new(movie.Title, true));
+            }
+            else
+            {
+                discoverLog.Add(new($"[tmdb:{id}]", false));
+            }
+            discoverImported++;
+            StateHasChanged();
+            await Task.Delay(TmdbConstants.ApiDelayMs);
+        }
+
+        var aborted = _discoverCts.Token.IsCancellationRequested;
+        discoverPhase = aborted
+            ? $"ABORTED — {discoverImported} IMPORTED"
+            : $"COMPLETE — {discoverImported} IMPORTED";
+        discovering = false;
+        StateHasChanged();
+    }
+
+    private void AbortDiscover() => _discoverCts?.Cancel();
+
+    private void ResetDiscover()
+    {
+        discoverMode     = false;
+        discovering      = false;
+        discoverPhase    = "";
+        discoverTotal    = 0;
+        discoverImported = 0;
+        discoverLog.Clear();
+        _discoverCts?.Dispose();
+        _discoverCts = null;
     }
 }
