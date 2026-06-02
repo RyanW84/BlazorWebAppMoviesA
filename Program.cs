@@ -51,7 +51,7 @@ using (var scope = app.Services.CreateScope())
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
-app.MapGet("/export/movies.csv", async (BlazorWebAppMovies.Data.MovieDbContext db) =>
+app.MapGet("/export/movies.csv", async (MovieDbContext db) =>
 {
     var movies = await db.Movies.AsNoTracking().OrderBy(m => m.Title).ToListAsync();
     var csv = new System.Text.StringBuilder();
@@ -82,6 +82,38 @@ app.MapGet("/export/movies.csv", async (BlazorWebAppMovies.Data.MovieDbContext d
             return $"\"{v.Replace("\"", "\"\"")}\"";
         return v;
     }
+});
+
+app.MapGet("/export/movies.json", async (MovieDbContext db) =>
+{
+    var movies = await db.Movies.AsNoTracking()
+        .Include(m => m.Cast)
+        .OrderBy(m => m.Title)
+        .ToListAsync();
+
+    var tags = await db.MovieTags.AsNoTracking().ToListAsync();
+    var tagMap = tags.GroupBy(t => t.MovieId)
+        .ToDictionary(g => g.Key, g => g.Select(t => t.Tag).ToList());
+
+    var log = await db.WatchLog.AsNoTracking().OrderBy(w => w.WatchedOn).ToListAsync();
+    var logMap = log.GroupBy(w => w.MovieId)
+        .ToDictionary(g => g.Key, g => g.Select(w => new { date = w.WatchedOn.ToString("yyyy-MM-dd"), w.Notes }).ToList());
+
+    var export = movies.Select(m => new
+    {
+        m.Id, m.Title, m.ReleaseYear, m.Genre, m.Director, m.Rating,
+        m.PersonalRating, WatchStatus = m.WatchStatus.ToString(),
+        m.RuntimeMinutes, m.Synopsis, m.PosterUrl, m.TmdbId,
+        m.IsFavorite, m.CollectionName, m.CollectionId,
+        DateWatched = m.DateWatched?.ToString("yyyy-MM-dd"),
+        m.Notes,
+        Tags = tagMap.TryGetValue(m.Id, out var t) ? t : [],
+        WatchLog = logMap.TryGetValue(m.Id, out var l) ? l : [],
+        Cast = m.Cast.OrderBy(c => c.Order).Select(c => new { c.Name, c.Character, c.Order }).ToList(),
+    });
+
+    var json = System.Text.Json.JsonSerializer.Serialize(export, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", "movies.json");
 });
 
 app.Lifetime.ApplicationStarted.Register(() =>

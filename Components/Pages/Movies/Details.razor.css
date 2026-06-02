@@ -148,3 +148,39 @@
     border-bottom-color: #cc2200;
 }
 
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #130000;
+    border: 1px solid #3a0000;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+}
+
+.tag-label {
+    color: #cc6644;
+}
+
+.tag-label:hover {
+    color: #ff8866;
+}
+
+.tag-remove {
+    color: #555;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.tag-remove:hover {
+    color: #cc2200;
+}
+
+.tag-input {
+    background: #111 !important;
+    color: #ccc !important;
+    border-color: #333 !important;
+    max-width: 200px;
+}
+

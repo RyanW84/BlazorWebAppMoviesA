@@ -23,7 +23,7 @@ public class MovieService(MovieDbContext db) : IMovieService
         string? search = null, string? genre = null, string sortBy = "title",
         bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false,
         WatchStatus? watchStatus = null, int? yearFrom = null, int? yearTo = null, decimal? ratingMin = null,
-        int? collectionId = null)
+        int? collectionId = null, string? tag = null)
     {
         var query = db.Movies.AsNoTracking();
 
@@ -64,6 +64,9 @@ public class MovieService(MovieDbContext db) : IMovieService
 
         if (collectionId.HasValue)
             query = query.Where(m => m.CollectionId == collectionId.Value);
+
+        if (!string.IsNullOrWhiteSpace(tag))
+            query = query.Where(m => db.MovieTags.Any(t => t.MovieId == m.Id && t.Tag == tag));
 
         query = (sortBy.ToLower(), ascending) switch
         {
@@ -276,6 +279,35 @@ public class MovieService(MovieDbContext db) : IMovieService
         return (result?.Total ?? 0, result?.Watched ?? 0);
     }
 
+    public async Task<List<string>> GetTagsForMovieAsync(int movieId) =>
+        await db.MovieTags
+            .Where(t => t.MovieId == movieId)
+            .Select(t => t.Tag)
+            .OrderBy(t => t)
+            .ToListAsync();
+
+    public async Task<List<string>> GetAllTagsAsync() =>
+        await db.MovieTags
+            .Select(t => t.Tag)
+            .Distinct()
+            .OrderBy(t => t)
+            .ToListAsync();
+
+    public async Task<List<WatchLogEntry>> GetWatchLogAsync(int movieId) =>
+        await db.WatchLog
+            .Where(w => w.MovieId == movieId)
+            .OrderByDescending(w => w.WatchedOn)
+            .ToListAsync();
+
+    public async Task<List<(int Year, int Month, int Count)>> GetWatchesByMonthAsync() =>
+        (await db.WatchLog
+            .GroupBy(w => new { w.WatchedOn.Year, w.WatchedOn.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+            .OrderBy(g => g.Year).ThenBy(g => g.Month)
+            .ToListAsync())
+        .Select(g => (g.Year, g.Month, g.Count))
+        .ToList();
+
     public async Task<List<Movie>> GetWatchlistAsync() =>
         await db.Movies.AsNoTracking()
             .Where(m => m.WatchStatus == WatchStatus.WantToWatch)
@@ -320,6 +352,31 @@ public class MovieService(MovieDbContext db) : IMovieService
         await db.Movies
             .Where(m => m.Id == id)
             .ExecuteUpdateAsync(s => s.SetProperty(m => m.Notes, notes));
+
+    public async Task AddTagAsync(int movieId, string tag)
+    {
+        var normalized = tag.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(normalized)) return;
+        if (!await db.MovieTags.AnyAsync(t => t.MovieId == movieId && t.Tag == normalized))
+        {
+            db.MovieTags.Add(new MovieTag { MovieId = movieId, Tag = normalized });
+            await db.SaveChangesAsync();
+        }
+    }
+
+    public async Task RemoveTagAsync(int movieId, string tag) =>
+        await db.MovieTags
+            .Where(t => t.MovieId == movieId && t.Tag == tag)
+            .ExecuteDeleteAsync();
+
+    public async Task AddWatchLogEntryAsync(WatchLogEntry entry)
+    {
+        db.WatchLog.Add(entry);
+        await db.SaveChangesAsync();
+    }
+
+    public async Task DeleteWatchLogEntryAsync(int entryId) =>
+        await db.WatchLog.Where(w => w.Id == entryId).ExecuteDeleteAsync();
 
     public async Task SetWatchlistPriorityAsync(int id, int? priority) =>
         await db.Movies

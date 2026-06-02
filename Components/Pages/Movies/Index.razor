@@ -10,8 +10,19 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Movies</h1>
     <div class="d-flex gap-2">
-        <a href="/export/movies.csv" class="btn btn-outline-secondary" download>Export CSV</a>
+        <a href="/export/movies.csv" class="btn btn-outline-secondary" download title="Export CSV">CSV</a>
+        <a href="/export/movies.json" class="btn btn-outline-secondary" download title="Export JSON">JSON</a>
         <button class="btn btn-outline-secondary" @onclick="SurpriseMe">Surprise me</button>
+        <button class="btn btn-outline-secondary" @onclick="() => gridView = !gridView" title="Toggle view">
+            @if (gridView)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm0 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V7zm0 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-1z"/></svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3A1.5 1.5 0 0 1 15 10.5v3A1.5 1.5 0 0 1 13.5 15h-3A1.5 1.5 0 0 1 9 13.5v-3z"/></svg>
+            }
+        </button>
         <button class="btn @(favoritesOnly ? "btn-danger" : "btn-outline-danger")" @onclick="ToggleFavoritesFilter" title="Favorites">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.5.5a.5.5 0 0 0-1 0v.518A7 7 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518A7 7 0 0 0 7.5 14.982V15.5a.5.5 0 0 0 1 0v-.518A7 7 0 0 0 14.982 8.5H15.5a.5.5 0 0 0 0-1h-.518A7 7 0 0 0 8.5 1.018V.5ZM7 2.028V3.5a.5.5 0 0 0 1 0V2.028A6 6 0 0 1 13.972 8H12.5a.5.5 0 0 0 0 1h1.472A6 6 0 0 1 8 13.972V12.5a.5.5 0 0 0-1 0v1.472A6 6 0 0 1 2.028 8H3.5a.5.5 0 0 0 0-1H2.028A6 6 0 0 1 7 2.028ZM8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
         </button>
@@ -75,64 +86,103 @@ else
         </small>
     </div>
 
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th style="width:36px"></th>
-                <th style="width:60px"></th>
-                <th @onclick='() => SetSort("title")' style="cursor:pointer" class="user-select-none">
-                    Title @SortIndicator("title")
-                </th>
-                <th @onclick='() => SetSort("year")' style="cursor:pointer" class="user-select-none">
-                    Year @SortIndicator("year")
-                </th>
-                <th @onclick='() => SetSort("rating")' style="cursor:pointer" class="user-select-none">
-                    Rating @SortIndicator("rating")
-                </th>
-                <th>Genre</th>
-                <th>Director</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
+    @if (gridView)
+    {
+        <div class="movie-grid">
             @foreach (var movie in movies)
             {
-                <tr>
-                    <td>
-                        <button class="btn btn-sm btn-link p-0" style="color:@(movie.IsFavorite ? "#cc2200" : "#444");" @onclick="() => ToggleFavorite(movie)" title="@(movie.IsFavorite ? "Remove from favorites" : "Add to favorites")">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.5.5a.5.5 0 0 0-1 0v.518A7 7 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518A7 7 0 0 0 7.5 14.982V15.5a.5.5 0 0 0 1 0v-.518A7 7 0 0 0 14.982 8.5H15.5a.5.5 0 0 0 0-1h-.518A7 7 0 0 0 8.5 1.018V.5ZM7 2.028V3.5a.5.5 0 0 0 1 0V2.028A6 6 0 0 1 13.972 8H12.5a.5.5 0 0 0 0 1h1.472A6 6 0 0 1 8 13.972V12.5a.5.5 0 0 0-1 0v1.472A6 6 0 0 1 2.028 8H3.5a.5.5 0 0 0 0-1H2.028A6 6 0 0 1 7 2.028ZM8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
-                        </button>
-                    </td>
-                    <td>
-                        <a href="/movies/@movie.Id">
-                            @if (!string.IsNullOrEmpty(movie.PosterUrl))
-                            {
-                                <img src="@movie.PosterUrl" alt="@movie.Title" style="height:60px;width:40px;object-fit:cover;border-radius:3px;" />
-                            }
-                        </a>
-                    </td>
-                    <td><a href="/movies/@movie.Id" class="text-decoration-none text-body fw-semibold">@movie.Title</a></td>
-                    <td>@movie.ReleaseYear</td>
-                    <td>
-                        @movie.Rating.ToString("F1")
+                <a href="/movies/@movie.Id" class="movie-card text-decoration-none">
+                    <div class="movie-card-poster">
+                        @if (!string.IsNullOrEmpty(movie.PosterUrl))
+                        {
+                            <img src="@movie.PosterUrl" alt="@movie.Title" class="movie-card-img" />
+                        }
+                        else
+                        {
+                            <div class="movie-card-no-poster">NO<br/>POSTER</div>
+                        }
+                        @if (movie.IsFavorite)
+                        {
+                            <div class="movie-card-fav">◈</div>
+                        }
+                        @if (movie.WatchStatus == WatchStatus.Watched)
+                        {
+                            <div class="movie-card-watched">✓</div>
+                        }
+                    </div>
+                    <div class="movie-card-info">
+                        <div class="movie-card-title" title="@movie.Title">@movie.Title</div>
+                        <div class="movie-card-meta">@movie.ReleaseYear · @movie.Rating.ToString("F1")</div>
                         @if (movie.PersonalRating.HasValue)
                         {
-                            <span class="ms-1" style="color:#f5c518;font-size:0.8rem;" title="My rating: @movie.PersonalRating/5">
-                                @(new string('★', movie.PersonalRating.Value))
-                            </span>
+                            <div class="movie-card-stars">@(new string('★', movie.PersonalRating.Value))</div>
                         }
-                    </td>
-                    <td>@movie.Genre</td>
-                    <td>@movie.Director</td>
-                    <td class="text-end">
-                        <a href="/movies/@movie.Id" class="btn btn-sm btn-outline-secondary">Details</a>
-                        <a href="/movies/@movie.Id/edit" class="btn btn-sm btn-outline-primary ms-1">Edit</a>
-                        <a href="/movies/@movie.Id/delete" class="btn btn-sm btn-outline-danger ms-1">Delete</a>
-                    </td>
-                </tr>
+                    </div>
+                </a>
             }
-        </tbody>
-    </table>
+        </div>
+    }
+    else
+    {
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th style="width:36px"></th>
+                    <th style="width:60px"></th>
+                    <th @onclick='() => SetSort("title")' style="cursor:pointer" class="user-select-none">
+                        Title @SortIndicator("title")
+                    </th>
+                    <th @onclick='() => SetSort("year")' style="cursor:pointer" class="user-select-none">
+                        Year @SortIndicator("year")
+                    </th>
+                    <th @onclick='() => SetSort("rating")' style="cursor:pointer" class="user-select-none">
+                        Rating @SortIndicator("rating")
+                    </th>
+                    <th>Genre</th>
+                    <th>Director</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var movie in movies)
+                {
+                    <tr>
+                        <td>
+                            <button class="btn btn-sm btn-link p-0" style="color:@(movie.IsFavorite ? "#cc2200" : "#444");" @onclick="() => ToggleFavorite(movie)" title="@(movie.IsFavorite ? "Remove from favorites" : "Add to favorites")">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8.5.5a.5.5 0 0 0-1 0v.518A7 7 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518A7 7 0 0 0 7.5 14.982V15.5a.5.5 0 0 0 1 0v-.518A7 7 0 0 0 14.982 8.5H15.5a.5.5 0 0 0 0-1h-.518A7 7 0 0 0 8.5 1.018V.5ZM7 2.028V3.5a.5.5 0 0 0 1 0V2.028A6 6 0 0 1 13.972 8H12.5a.5.5 0 0 0 0 1h1.472A6 6 0 0 1 8 13.972V12.5a.5.5 0 0 0-1 0v1.472A6 6 0 0 1 2.028 8H3.5a.5.5 0 0 0 0-1H2.028A6 6 0 0 1 7 2.028ZM8 7a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/></svg>
+                            </button>
+                        </td>
+                        <td>
+                            <a href="/movies/@movie.Id">
+                                @if (!string.IsNullOrEmpty(movie.PosterUrl))
+                                {
+                                    <img src="@movie.PosterUrl" alt="@movie.Title" style="height:60px;width:40px;object-fit:cover;border-radius:3px;" />
+                                }
+                            </a>
+                        </td>
+                        <td><a href="/movies/@movie.Id" class="text-decoration-none text-body fw-semibold">@movie.Title</a></td>
+                        <td>@movie.ReleaseYear</td>
+                        <td>
+                            @movie.Rating.ToString("F1")
+                            @if (movie.PersonalRating.HasValue)
+                            {
+                                <span class="ms-1" style="color:#f5c518;font-size:0.8rem;" title="My rating: @movie.PersonalRating/5">
+                                    @(new string('★', movie.PersonalRating.Value))
+                                </span>
+                            }
+                        </td>
+                        <td>@movie.Genre</td>
+                        <td>@movie.Director</td>
+                        <td class="text-end">
+                            <a href="/movies/@movie.Id" class="btn btn-sm btn-outline-secondary">Details</a>
+                            <a href="/movies/@movie.Id/edit" class="btn btn-sm btn-outline-primary ms-1">Edit</a>
+                            <a href="/movies/@movie.Id/delete" class="btn btn-sm btn-outline-danger ms-1">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 
     @if (totalPages > 1)
     {
@@ -175,7 +225,9 @@ else
     [Parameter][SupplyParameterFromQuery(Name = "yto")]      public int?    YearToParam       { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "rmin")]       public decimal? RatingMinParam    { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "collection")] public int?     CollectionParam   { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "tag")]        public string?  TagParam          { get; set; }
 
+    private bool gridView = false;
     private List<Movie> movies = [];
     private List<string> genres = [];
     private CancellationTokenSource? _searchCts;
@@ -192,6 +244,7 @@ else
     private int? yearTo;
     private decimal? ratingMin;
     private int? collectionId;
+    private string? selectedTag;
     private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
 
     protected override async Task OnInitializedAsync()
@@ -208,6 +261,7 @@ else
         yearTo              = YearToParam;
         ratingMin           = RatingMinParam;
         collectionId        = CollectionParam;
+        selectedTag         = TagParam;
         genres = await MovieService.GetGenresAsync();
         await LoadMovies();
     }
@@ -215,7 +269,7 @@ else
     private async Task LoadMovies()
     {
         WatchStatus? watchStatusFilter = Enum.TryParse<WatchStatus>(selectedWatchStatus, out var parsed) ? parsed : null;
-        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter, yearFrom, yearTo, ratingMin, collectionId);
+        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter, yearFrom, yearTo, ratingMin, collectionId, selectedTag);
         movies = result.Movies;
         totalCount = result.TotalCount;
     }
@@ -236,6 +290,7 @@ else
             ["yto"]        = yearTo,
             ["rmin"]       = ratingMin,
             ["collection"] = collectionId,
+            ["tag"]        = selectedTag,
         });
         Nav.NavigateTo(url, replace: true);
     }

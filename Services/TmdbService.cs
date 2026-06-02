@@ -264,6 +264,23 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         }
     }
 
+    public async Task<List<TmdbMovieResult>> GetTrendingAsync(string window = "week")
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"trending/movie/{window}?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return [];
+            var data = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
+            return data?.Results ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB trending fetch failed");
+            return [];
+        }
+    }
+
     // ── ITmdbPersonService ───────────────────────────────────────────────────
 
     public async Task<TmdbPersonDetails?> GetPersonDetailsAsync(int personId)

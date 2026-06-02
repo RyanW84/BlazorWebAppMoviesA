@@ -77,3 +77,48 @@
     color: #555;
     font-variant-numeric: tabular-nums;
 }
+
+/* Month activity chart */
+.month-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 100px;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.month-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 36px;
+}
+
+.month-bar-wrap {
+    width: 100%;
+    height: 70px;
+    display: flex;
+    align-items: flex-end;
+}
+
+.month-bar {
+    width: 100%;
+    background: #cc2200;
+    min-height: 2px;
+    transition: height 0.3s ease;
+}
+
+.month-label {
+    font-size: 0.55rem;
+    color: #555;
+    margin-top: 3px;
+    white-space: nowrap;
+}
+
+.month-count {
+    font-size: 0.6rem;
+    color: #888;
+    font-variant-numeric: tabular-nums;
+}

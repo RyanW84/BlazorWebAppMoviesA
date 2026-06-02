@@ -209,6 +209,34 @@
 
             </div>
 
+            <!-- Watches by month -->
+            @if (watchesByMonth.Count > 0)
+            {
+                <div class="row g-4 mt-0">
+                    <div class="col-12">
+                        <div class="terminal-panel">
+                            <div class="panel-header">WATCH ACTIVITY BY MONTH</div>
+                            <div class="panel-body">
+                                <div class="month-chart">
+                                    @foreach (var (year, month, count) in watchesByMonth)
+                                    {
+                                        var pct = maxMonthCount > 0 ? (double)count / maxMonthCount * 100 : 0;
+                                        var label = $"{year}-{month:D2}";
+                                        <div class="month-col" title="@label: @count watch@(count == 1 ? "" : "es")">
+                                            <div class="month-bar-wrap">
+                                                <div class="month-bar" style="height:@pct.ToString("F0")%"></div>
+                                            </div>
+                                            <div class="month-label">@month/@(year % 100)</div>
+                                            <div class="month-count">@count</div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
             <div class="mt-3">
                 <a href="/movies" class="btn btn-outline-secondary btn-sm">← BACK TO ARCHIVE</a>
             </div>
@@ -232,7 +260,8 @@
     private List<(WatchStatus Status, int Count)>   watchStatusCounts = [];
     private List<(string Director, int Count)>      topDirectors      = [];
     private List<(string Actor, int Count)>         topCast           = [];
-    private List<(int Stars, int Count)>            byPersonalRating  = [];
+    private List<(int Stars, int Count)>                byPersonalRating  = [];
+    private List<(int Year, int Month, int Count)>      watchesByMonth    = [];
 
     private int maxGenreCount;
     private int maxDecadeCount;
@@ -240,6 +269,7 @@
     private int maxDirectorCount;
     private int maxCastCount;
     private int maxPersonalRatingCount;
+    private int maxMonthCount;
 
     protected override async Task OnInitializedAsync()
     {
@@ -252,9 +282,10 @@
         var castTask          = MovieService.GetTopCastAsync(10);
         var personalRateTask  = MovieService.GetStatsByPersonalRatingAsync();
         var runtimeTask       = MovieService.GetRuntimeStatsAsync();
+        var monthTask         = MovieService.GetWatchesByMonthAsync();
 
         await Task.WhenAll(statsTask, genreTask, decadeTask, ratingTask, watchTask,
-            directorTask, castTask, personalRateTask, runtimeTask);
+            directorTask, castTask, personalRateTask, runtimeTask, monthTask);
 
         (totalMovies, favoriteMovies) = statsTask.Result;
         byGenre          = genreTask.Result;
@@ -272,6 +303,8 @@
         maxDirectorCount       = topDirectors.Count     > 0 ? topDirectors.Max(g => g.Count)     : 0;
         maxCastCount           = topCast.Count          > 0 ? topCast.Max(g => g.Count)          : 0;
         maxPersonalRatingCount = byPersonalRating.Count > 0 ? byPersonalRating.Max(g => g.Count) : 0;
+        watchesByMonth         = monthTask.Result;
+        maxMonthCount          = watchesByMonth.Count  > 0 ? watchesByMonth.Max(g => g.Count)  : 0;
 
         avgRating = totalMovies > 0
             ? Math.Round(byRating.Sum(b => b.Bucket * b.Count) / totalMovies, 1)

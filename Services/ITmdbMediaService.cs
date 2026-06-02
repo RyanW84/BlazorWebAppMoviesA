@@ -8,4 +8,5 @@ public interface ITmdbMediaService
     Task<List<TmdbMovieResult>> GetRecommendationsAsync(int tmdbId);
     Task<TmdbWatchRegion?> GetWatchProvidersAsync(int tmdbId, string region = "US");
     Task<TmdbCollectionDetails?> GetCollectionAsync(int collectionId);
+    Task<List<TmdbMovieResult>> GetTrendingAsync(string window = "week");
 }

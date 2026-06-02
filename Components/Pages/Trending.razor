@@ -1,0 +1,157 @@
+@page "/trending"
+@rendermode InteractiveServer
+@inject ITmdbMediaService    TmdbMedia
+@inject ITmdbImportService   TmdbImport
+@inject IMovieCommandService MovieCommands
+@inject IMovieQueryService   MovieQuery
+
+<PageTitle>Trending</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // TMDB SIGNAL INTERCEPT</span>
+        <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+    </div>
+
+    <div class="archive-body">
+
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <span class="text-muted" style="font-size:0.8rem;">WINDOW:</span>
+            <button class="btn btn-sm @(window == "day" ? "btn-danger" : "btn-outline-secondary")"
+                    @onclick='() => SwitchWindow("day")'>TODAY</button>
+            <button class="btn btn-sm @(window == "week" ? "btn-danger" : "btn-outline-secondary")"
+                    @onclick='() => SwitchWindow("week")'>THIS WEEK</button>
+        </div>
+
+        @if (loading)
+        {
+            <p class="text-muted">// INTERCEPTING SIGNAL…</p>
+        }
+        else if (results.Count == 0)
+        {
+            <p class="text-muted">// NO SIGNAL — CHECK TMDB API KEY</p>
+        }
+        else
+        {
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span class="text-muted" style="font-size:0.8rem;">@selected.Count SELECTED FOR IMPORT</span>
+                @if (selected.Count > 0)
+                {
+                    <button class="btn btn-sm btn-primary" @onclick="ImportSelected" disabled="@importing">
+                        @(importing ? "IMPORTING…" : $"IMPORT {selected.Count}")
+                    </button>
+                }
+            </div>
+
+            <div class="trending-grid">
+                @foreach (var r in results)
+                {
+                    var isLocal    = localIds.ContainsKey(r.Id);
+                    var isSelected = selected.Contains(r.Id);
+                    var year       = r.ReleaseDate?.Length >= 4 ? r.ReleaseDate[..4] : "";
+                    var poster     = TmdbConstants.SearchPosterUrl(r.PosterPath);
+
+                    <div class="tr-card @(isSelected ? "tr-card--selected" : "") @(isLocal ? "tr-card--local" : "")"
+                         @onclick="() => Toggle(r.Id)">
+                        @if (!string.IsNullOrEmpty(r.PosterPath))
+                        {
+                            <img src="@poster" class="tr-poster" alt="@r.Title" />
+                        }
+                        else
+                        {
+                            <div class="tr-poster tr-poster-empty">NO POSTER</div>
+                        }
+                        <div class="tr-info">
+                            <div class="tr-title" title="@r.Title">@r.Title</div>
+                            <div class="tr-meta">@year · ★@r.VoteAverage.ToString("F1")</div>
+                            @if (isLocal)
+                            {
+                                <div class="tr-badge tr-badge--local">IN ARCHIVE</div>
+                            }
+                            else if (isSelected)
+                            {
+                                <div class="tr-badge tr-badge--selected">QUEUED</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @foreach (var entry in importLog)
+            {
+                <div class="mt-1" style="font-size:0.75rem;font-family:monospace;color:@(entry.Ok ? "#44aa66" : "#cc4444");">
+                    @(entry.Ok ? "✓" : "✗") @entry.Title
+                </div>
+            }
+        }
+
+    </div>
+</div>
+
+@code {
+    private string window = "week";
+    private bool loading = true;
+    private bool importing;
+    private List<TmdbMovieResult> results = [];
+    private Dictionary<int, int> localIds = [];
+    private HashSet<int> selected = [];
+    private record ImportEntry(string Title, bool Ok);
+    private List<ImportEntry> importLog = [];
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task SwitchWindow(string w)
+    {
+        window = w;
+        selected.Clear();
+        importLog.Clear();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        loading = true;
+        results = await TmdbMedia.GetTrendingAsync(window);
+        if (results.Count > 0)
+        {
+            var tmdbIds = results.Select(r => r.Id);
+            localIds = await MovieQuery.GetLocalIdsByTmdbIdsAsync(tmdbIds);
+        }
+        loading = false;
+    }
+
+    private void Toggle(int tmdbId)
+    {
+        if (localIds.ContainsKey(tmdbId)) return;
+        if (!selected.Remove(tmdbId)) selected.Add(tmdbId);
+    }
+
+    private async Task ImportSelected()
+    {
+        if (selected.Count == 0) return;
+        importing = true;
+        importLog.Clear();
+
+        foreach (var r in results.Where(r => selected.Contains(r.Id)))
+        {
+            var movie = await TmdbImport.ImportAsync(r.Id);
+            if (movie is not null)
+            {
+                await MovieCommands.AddIfNotExistsAsync(movie);
+                localIds[r.Id] = 0;
+                importLog.Add(new(r.Title, true));
+            }
+            else
+            {
+                importLog.Add(new(r.Title, false));
+            }
+            StateHasChanged();
+        }
+
+        selected.Clear();
+        var tmdbIds = results.Select(r => r.Id);
+        localIds = await MovieQuery.GetLocalIdsByTmdbIdsAsync(tmdbIds);
+        importing = false;
+    }
+}

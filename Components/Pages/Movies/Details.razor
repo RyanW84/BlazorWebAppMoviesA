@@ -196,6 +196,66 @@ else
             </div>
         </div>
 
+        <!-- Tags panel -->
+        <div class="terminal-panel">
+            <div class="panel-header">TAGS</div>
+            <div class="panel-body">
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    @foreach (var tag in tags)
+                    {
+                        <span class="tag-chip">
+                            <a href="/movies?tag=@Uri.EscapeDataString(tag)" class="text-decoration-none tag-label">@tag</a>
+                            <button class="btn btn-link p-0 tag-remove" @onclick="() => RemoveTag(tag)" title="Remove tag">×</button>
+                        </span>
+                    }
+                    @if (tags.Count == 0)
+                    {
+                        <span class="text-muted" style="font-size:0.8rem;">// NO TAGS</span>
+                    }
+                </div>
+                <div class="d-flex gap-2 align-items-center">
+                    <input class="form-control form-control-sm tag-input" placeholder="Add tag…" @bind="newTag" @onkeydown="OnTagKeyDown" list="tag-suggestions" />
+                    <datalist id="tag-suggestions">
+                        @foreach (var t in allTags.Where(t => !tags.Contains(t)))
+                        {
+                            <option value="@t" />
+                        }
+                    </datalist>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="AddTag">ADD</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Watch log panel -->
+        <div class="terminal-panel">
+            <div class="panel-header">WATCH LOG</div>
+            <div class="panel-body">
+                @if (watchLog.Count > 0)
+                {
+                    <table class="table table-sm mb-3" style="font-size:0.8rem;color:#aaa;">
+                        <tbody>
+                            @foreach (var entry in watchLog)
+                            {
+                                <tr>
+                                    <td style="color:#cc2200;white-space:nowrap;">@entry.WatchedOn.ToString("yyyy-MM-dd")</td>
+                                    <td>@(entry.Notes ?? "")</td>
+                                    <td class="text-end">
+                                        <button class="btn btn-link p-0 text-muted" style="font-size:0.7rem;" @onclick="() => DeleteLogEntry(entry.Id)">✕</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="date" class="form-control form-control-sm" style="width:auto;background:#111;color:#ccc;border-color:#333;"
+                           @bind="newLogDate" />
+                    <input class="form-control form-control-sm" placeholder="Notes (optional)" @bind="newLogNotes" style="flex:1;min-width:140px;" />
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="AddLogEntry">LOG</button>
+                </div>
+            </div>
+        </div>
+
         <CastPanel Cast="@movie.Cast" />
         <CollectionPanel Collection="@collection" LocalIds="@collectionLocalIds" CurrentTmdbId="@(movie.TmdbId ?? 0)" />
         <WatchProvidersPanel Providers="@watchProviders" />
@@ -216,11 +276,26 @@ else
     private Dictionary<int, int> collectionLocalIds = [];
     private bool editingNotes;
     private string notesBuffer = "";
+    private List<string> tags = [];
+    private List<string> allTags = [];
+    private string newTag = "";
+    private List<WatchLogEntry> watchLog = [];
+    private DateTime newLogDate = DateTime.Today;
+    private string newLogNotes = "";
 
     protected override async Task OnInitializedAsync()
     {
         movie = await MovieQuery.GetByIdAsync(Id);
-        if (movie?.TmdbId is not int tmdbId) return;
+        var tagsTask    = MovieQuery.GetTagsForMovieAsync(Id);
+        var allTagsTask = MovieQuery.GetAllTagsAsync();
+        var logTask     = MovieQuery.GetWatchLogAsync(Id);
+
+        if (movie?.TmdbId is not int tmdbId)
+        {
+            await Task.WhenAll(tagsTask, allTagsTask, logTask);
+            tags = tagsTask.Result; allTags = allTagsTask.Result; watchLog = logTask.Result;
+            return;
+        }
 
         var trailerTask    = TmdbMedia.GetTrailerKeyAsync(tmdbId);
         var providersTask  = TmdbMedia.GetWatchProvidersAsync(tmdbId);
@@ -238,10 +313,14 @@ else
             ? TmdbMedia.GetCollectionAsync(colId)
             : null;
 
-        var tasks = new List<Task> { trailerTask, providersTask, recsTask };
+        var tasks = new List<Task> { trailerTask, providersTask, recsTask, tagsTask, allTagsTask, logTask };
         if (creditsTask is not null) tasks.Add(creditsTask);
         if (collectionTask is not null) tasks.Add(collectionTask);
         await Task.WhenAll(tasks);
+
+        tags    = tagsTask.Result;
+        allTags = allTagsTask.Result;
+        watchLog = logTask.Result;
 
         trailerKey     = trailerTask.Result;
         watchProviders = providersTask.Result;
@@ -324,6 +403,43 @@ else
     {
         editingNotes = false;
         notesBuffer = "";
+    }
+
+    private async Task AddTag()
+    {
+        if (movie is null || string.IsNullOrWhiteSpace(newTag)) return;
+        await MovieCommands.AddTagAsync(movie.Id, newTag);
+        tags = await MovieQuery.GetTagsForMovieAsync(movie.Id);
+        allTags = await MovieQuery.GetAllTagsAsync();
+        newTag = "";
+    }
+
+    private async Task OnTagKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await AddTag();
+    }
+
+    private async Task RemoveTag(string tag)
+    {
+        if (movie is null) return;
+        await MovieCommands.RemoveTagAsync(movie.Id, tag);
+        tags.Remove(tag);
+    }
+
+    private async Task AddLogEntry()
+    {
+        if (movie is null) return;
+        var entry = new WatchLogEntry { MovieId = movie.Id, WatchedOn = newLogDate, Notes = string.IsNullOrWhiteSpace(newLogNotes) ? null : newLogNotes };
+        await MovieCommands.AddWatchLogEntryAsync(entry);
+        watchLog = await MovieQuery.GetWatchLogAsync(movie.Id);
+        newLogNotes = "";
+        newLogDate = DateTime.Today;
+    }
+
+    private async Task DeleteLogEntry(int entryId)
+    {
+        await MovieCommands.DeleteWatchLogEntryAsync(entryId);
+        watchLog.RemoveAll(w => w.Id == entryId);
     }
 
     private static string WatchStatusLabel(WatchStatus s) => s switch
