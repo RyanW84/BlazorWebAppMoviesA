@@ -276,6 +276,14 @@ public class MovieService(MovieDbContext db) : IMovieService
         return (result?.Total ?? 0, result?.Watched ?? 0);
     }
 
+    public async Task<List<Movie>> GetWatchlistAsync() =>
+        await db.Movies.AsNoTracking()
+            .Where(m => m.WatchStatus == WatchStatus.WantToWatch)
+            .OrderBy(m => m.WatchlistPriority == null)
+            .ThenBy(m => m.WatchlistPriority)
+            .ThenBy(m => m.Title)
+            .ToListAsync();
+
     public async Task<List<(int CollectionId, string CollectionName, int Count)>> GetCollectionsAsync() =>
         (await db.Movies
             .Where(m => m.CollectionId != null && m.CollectionName != null)

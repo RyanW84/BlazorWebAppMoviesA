@@ -1,0 +1,113 @@
+.bi-search-input {
+    background: #111;
+    color: #ccc;
+    border-color: #333;
+}
+
+.bi-search-input:focus {
+    background: #111;
+    color: #ccc;
+    border-color: #cc2200;
+    box-shadow: none;
+}
+
+.bi-card {
+    background: #0d0000;
+    border: 1px solid #2a0000;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.bi-card:hover {
+    border-color: #884400;
+    background: #130000;
+}
+
+.bi-card--selected {
+    border-color: #cc2200 !important;
+    background: #1a0000 !important;
+}
+
+.bi-card--done {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.bi-poster {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    display: block;
+}
+
+.bi-poster-placeholder {
+    width: 100%;
+    aspect-ratio: 2/3;
+    background: #1a0000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: #444;
+    letter-spacing: 0.1em;
+}
+
+.bi-info {
+    padding: 0.4rem 0.5rem 0.5rem;
+    flex: 1;
+}
+
+.bi-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #bbb;
+    line-height: 1.3;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    margin-bottom: 0.15rem;
+}
+
+.bi-year {
+    font-size: 0.65rem;
+    color: #555;
+    margin-bottom: 0.25rem;
+}
+
+.bi-badge {
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    padding: 0.1rem 0.3rem;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.bi-badge--selected { background: #cc2200; color: #fff; }
+.bi-badge--done     { background: #228844; color: #fff; }
+
+/* Import progress */
+.bi-progress-panel {
+    background: #0a0000;
+    border: 1px solid #2a0000;
+    padding: 1.25rem;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+.bi-progress-header {
+    color: #cc2200;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+}
+
+.bi-log-row {
+    padding: 0.15rem 0;
+    letter-spacing: 0.04em;
+}
+
+.bi-log--ok  { color: #44aa66; }
+.bi-log--err { color: #cc4444; }

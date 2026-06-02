@@ -1,0 +1,44 @@
+.wl-table {
+    font-size: 0.85rem;
+}
+
+.wl-rank {
+    font-size: 0.75rem;
+    color: #cc2200;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+    width: 44px;
+}
+
+.wl-arrows {
+    width: 28px;
+    padding: 0 !important;
+}
+
+.wl-arrow {
+    font-size: 0.6rem;
+    color: #555;
+    line-height: 1.1;
+}
+
+.wl-arrow:hover:not(:disabled) {
+    color: #cc2200;
+}
+
+.wl-arrow:disabled {
+    opacity: 0.2;
+    cursor: default;
+}
+
+.wl-title {
+    color: #ccc;
+}
+
+.wl-unranked td {
+    opacity: 0.55;
+}
+
+.wl-unranked .wl-title {
+    color: #888;
+}

@@ -1,0 +1,176 @@
+@page "/watchlist"
+@rendermode InteractiveServer
+@inject IMovieQueryService   MovieQuery
+@inject IMovieCommandService MovieCommands
+
+<PageTitle>Watchlist</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // WATCHLIST QUEUE</span>
+        <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+    </div>
+
+    <div class="archive-body">
+
+        @if (loading)
+        {
+            <p class="text-muted">// LOADING QUEUE…</p>
+        }
+        else if (movies.Count == 0)
+        {
+            <p class="text-muted">// QUEUE EMPTY — MARK MOVIES AS "WANT TO WATCH" TO ADD THEM HERE</p>
+        }
+        else
+        {
+            <p class="text-muted mb-3" style="font-size:0.8rem;">
+                @movies.Count TITLE@(movies.Count == 1 ? "" : "S") IN QUEUE
+                · DRAG OR USE ↑↓ TO REPRIORITISE
+            </p>
+
+            <table class="table table-hover align-middle wl-table">
+                <thead>
+                    <tr>
+                        <th style="width:44px"></th>
+                        <th style="width:44px"></th>
+                        <th style="width:50px"></th>
+                        <th>Title</th>
+                        <th>Year</th>
+                        <th>Genre</th>
+                        <th>Rating</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < movies.Count; i++)
+                    {
+                        var idx   = i;
+                        var movie = movies[i];
+                        var rank  = movie.WatchlistPriority;
+                        <tr class="@(rank == null ? "wl-unranked" : "")">
+                            <td class="wl-rank">
+                                @if (rank != null)
+                                {
+                                    <span>#@rank</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="wl-arrows">
+                                <div class="d-flex flex-column">
+                                    <button class="btn btn-link p-0 wl-arrow" disabled="@(idx == 0)"
+                                            @onclick="() => MoveUp(idx)" title="Move up">▲</button>
+                                    <button class="btn btn-link p-0 wl-arrow" disabled="@(idx == movies.Count - 1)"
+                                            @onclick="() => MoveDown(idx)" title="Move down">▼</button>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="/movies/@movie.Id">
+                                    @if (!string.IsNullOrEmpty(movie.PosterUrl))
+                                    {
+                                        <img src="@movie.PosterUrl" alt="@movie.Title"
+                                             style="height:55px;width:37px;object-fit:cover;border-radius:2px;" />
+                                    }
+                                </a>
+                            </td>
+                            <td>
+                                <a href="/movies/@movie.Id" class="text-decoration-none fw-semibold wl-title">@movie.Title</a>
+                            </td>
+                            <td class="text-muted">@movie.ReleaseYear</td>
+                            <td class="text-muted">@movie.Genre</td>
+                            <td class="text-muted">@movie.Rating.ToString("F1")</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-success me-1" @onclick="() => MarkWatched(idx)" title="Mark as watched">✓ WATCHED</button>
+                                @if (rank != null)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => ClearPriority(idx)" title="Remove from ranked queue">✕</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <a href="/movies" class="btn btn-outline-secondary btn-sm mt-2">← BACK TO ARCHIVE</a>
+        }
+
+    </div>
+</div>
+
+@code {
+    private bool loading = true;
+    private List<Models.Movie.Movie> movies = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        movies  = await MovieQuery.GetWatchlistAsync();
+        loading = false;
+    }
+
+    private async Task MoveUp(int idx)
+    {
+        if (idx == 0) return;
+        await SwapPriorities(idx, idx - 1);
+    }
+
+    private async Task MoveDown(int idx)
+    {
+        if (idx >= movies.Count - 1) return;
+        await SwapPriorities(idx, idx + 1);
+    }
+
+    private async Task SwapPriorities(int a, int b)
+    {
+        var ma = movies[a];
+        var mb = movies[b];
+
+        // Assign dense priorities if any are missing
+        EnsurePrioritiesAssigned();
+
+        var tmp = movies[a].WatchlistPriority;
+        movies[a].WatchlistPriority = movies[b].WatchlistPriority;
+        movies[b].WatchlistPriority = tmp;
+
+        (movies[a], movies[b]) = (movies[b], movies[a]);
+
+        await Task.WhenAll(
+            MovieCommands.SetWatchlistPriorityAsync(ma.Id, ma.WatchlistPriority),
+            MovieCommands.SetWatchlistPriorityAsync(mb.Id, mb.WatchlistPriority));
+    }
+
+    private void EnsurePrioritiesAssigned()
+    {
+        for (var i = 0; i < movies.Count; i++)
+            if (movies[i].WatchlistPriority == null)
+                movies[i].WatchlistPriority = i + 1;
+    }
+
+    private async Task ClearPriority(int idx)
+    {
+        var movie = movies[idx];
+        movie.WatchlistPriority = null;
+        await MovieCommands.SetWatchlistPriorityAsync(movie.Id, null);
+        movies = await MovieQuery.GetWatchlistAsync();
+    }
+
+    private async Task MarkWatched(int idx)
+    {
+        var movie = movies[idx];
+        await MovieCommands.SetWatchStatusAsync(movie.Id, WatchStatus.Watched);
+        await MovieCommands.SetWatchlistPriorityAsync(movie.Id, null);
+        movies.RemoveAt(idx);
+        NormalisePriorities();
+    }
+
+    private void NormalisePriorities()
+    {
+        var ranked = movies.Where(m => m.WatchlistPriority != null)
+                           .OrderBy(m => m.WatchlistPriority)
+                           .ToList();
+        for (var i = 0; i < ranked.Count; i++)
+            ranked[i].WatchlistPriority = i + 1;
+    }
+}

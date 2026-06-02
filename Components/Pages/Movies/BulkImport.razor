@@ -1,0 +1,199 @@
+@page "/movies/bulk-import"
+@rendermode InteractiveServer
+@inject ITmdbSearchService   TmdbSearch
+@inject ITmdbImportService   TmdbImport
+@inject IMovieCommandService MovieCommands
+@inject IMovieQueryService   MovieQuery
+
+<PageTitle>Bulk Import</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // BULK ACQUISITION</span>
+        <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+    </div>
+
+    <div class="archive-body">
+
+        <div class="d-flex gap-2 mb-3">
+            <input class="form-control bi-search-input" @bind="query" @bind:event="oninput"
+                   @onkeydown="OnKeyDown" placeholder="Search TMDB…" />
+            <button class="btn btn-outline-secondary" @onclick="Search" disabled="@searching">
+                @(searching ? "SCANNING…" : "SCAN")
+            </button>
+        </div>
+
+        @if (results.Count > 0 && !importing)
+        {
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span class="text-muted" style="font-size:0.8rem;">@selected.Count SELECTED</span>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="SelectAll">SELECT ALL</button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="() => selected.Clear()">CLEAR</button>
+                <button class="btn btn-sm btn-primary ms-auto" @onclick="ImportSelected"
+                        disabled="@(selected.Count == 0)">
+                    IMPORT @(selected.Count > 0 ? selected.Count : "") SELECTED
+                </button>
+            </div>
+
+            <div class="row row-cols-2 row-cols-md-4 row-cols-lg-5 g-3">
+                @foreach (var r in results)
+                {
+                    var tmdbId    = r.Id;
+                    var isChecked = selected.Contains(tmdbId);
+                    var imported  = importedIds.Contains(tmdbId);
+                    var year      = r.ReleaseDate?.Length >= 4 ? r.ReleaseDate[..4] : "";
+                    <div class="col">
+                        <div class="bi-card @(isChecked ? "bi-card--selected" : "") @(imported ? "bi-card--done" : "")"
+                             @onclick="() => Toggle(tmdbId)">
+                            @if (!string.IsNullOrEmpty(r.PosterPath))
+                            {
+                                <img src="@TmdbConstants.SearchPosterUrl(r.PosterPath)" class="bi-poster" alt="@r.Title" />
+                            }
+                            else
+                            {
+                                <div class="bi-poster-placeholder">NO<br/>POSTER</div>
+                            }
+                            <div class="bi-info">
+                                <div class="bi-title" title="@r.Title">@r.Title</div>
+                                <div class="bi-year">@year</div>
+                                @if (imported)
+                                {
+                                    <div class="bi-badge bi-badge--done">✓ IN ARCHIVE</div>
+                                }
+                                else if (isChecked)
+                                {
+                                    <div class="bi-badge bi-badge--selected">✓ QUEUED</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="d-flex justify-content-end mt-3">
+                <button class="btn btn-primary" @onclick="ImportSelected" disabled="@(selected.Count == 0)">
+                    IMPORT @(selected.Count > 0 ? selected.Count : "") SELECTED
+                </button>
+            </div>
+        }
+
+        @if (importing)
+        {
+            <div class="bi-progress-panel">
+                <div class="bi-progress-header">// IMPORTING @importTotal FILES</div>
+                @foreach (var entry in importLog)
+                {
+                    <div class="bi-log-row @(entry.Ok ? "bi-log--ok" : "bi-log--err")">
+                        @(entry.Ok ? "✓" : "✗") @entry.Title
+                    </div>
+                }
+                @if (importLog.Count < importTotal)
+                {
+                    <div class="text-muted" style="font-size:0.8rem;">// @importLog.Count / @importTotal COMPLETE…</div>
+                }
+                else
+                {
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="Reset">NEW SEARCH</button>
+                        <a href="/movies" class="btn btn-primary btn-sm">← BACK TO ARCHIVE</a>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (!importing && results.Count == 0 && !searching)
+        {
+            <p class="text-muted" style="font-size:0.8rem;">// ENTER A SEARCH TERM TO SCAN TMDB</p>
+        }
+
+    </div>
+</div>
+
+@code {
+    private string query = "";
+    private List<TmdbMovieResult> results = [];
+    private HashSet<int> selected = [];
+    private HashSet<int> importedIds = [];
+    private bool searching;
+    private bool importing;
+    private int importTotal;
+    private record ImportEntry(string Title, bool Ok);
+    private List<ImportEntry> importLog = [];
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await Search();
+    }
+
+    private async Task Search()
+    {
+        if (string.IsNullOrWhiteSpace(query)) return;
+        searching = true;
+        selected.Clear();
+        importLog.Clear();
+        importing = false;
+        results = await TmdbSearch.SearchAsync(query);
+
+        if (results.Count > 0)
+        {
+            var tmdbIds = results.Select(r => r.Id);
+            var localMap = await MovieQuery.GetLocalIdsByTmdbIdsAsync(tmdbIds);
+            importedIds = localMap.Keys.ToHashSet();
+        }
+        else
+        {
+            importedIds.Clear();
+        }
+        searching = false;
+    }
+
+    private void Toggle(int tmdbId)
+    {
+        if (importedIds.Contains(tmdbId)) return;
+        if (!selected.Remove(tmdbId)) selected.Add(tmdbId);
+    }
+
+    private void SelectAll()
+    {
+        foreach (var r in results)
+            if (!importedIds.Contains(r.Id))
+                selected.Add(r.Id);
+    }
+
+    private async Task ImportSelected()
+    {
+        if (selected.Count == 0) return;
+        importing  = true;
+        importTotal = selected.Count;
+        importLog.Clear();
+
+        var toImport = results.Where(r => selected.Contains(r.Id)).ToList();
+        foreach (var r in toImport)
+        {
+            var movie = await TmdbImport.ImportAsync(r.Id);
+            if (movie is not null)
+            {
+                await MovieCommands.AddIfNotExistsAsync(movie);
+                importedIds.Add(r.Id);
+                importLog.Add(new(r.Title, true));
+            }
+            else
+            {
+                importLog.Add(new(r.Title, false));
+            }
+            StateHasChanged();
+        }
+
+        selected.Clear();
+    }
+
+    private void Reset()
+    {
+        results.Clear();
+        selected.Clear();
+        importLog.Clear();
+        importing = false;
+        query = "";
+    }
+}

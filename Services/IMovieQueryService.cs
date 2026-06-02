@@ -23,4 +23,5 @@ public interface IMovieQueryService
     Task<List<(int Stars, int Count)>> GetStatsByPersonalRatingAsync();
     Task<(int TotalMinutes, int WatchedMinutes)> GetRuntimeStatsAsync();
     Task<List<(int CollectionId, string CollectionName, int Count)>> GetCollectionsAsync();
+    Task<List<Movie>> GetWatchlistAsync();
 }
