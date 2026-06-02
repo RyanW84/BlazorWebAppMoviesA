@@ -54,6 +54,41 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         }
     }
 
+    public async Task<TmdbMovieResult?> FindByImdbIdAsync(string imdbId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"find/{Uri.EscapeDataString(imdbId)}?api_key={_apiKey}&external_source=imdb_id&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+            var data = await response.Content.ReadFromJsonAsync<TmdbFindResponse>();
+            return data?.MovieResults.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB find-by-imdb failed for imdbId={ImdbId}", imdbId);
+            return null;
+        }
+    }
+
+    public async Task<TmdbMovieResult?> SearchFirstAsync(string title, int? year)
+    {
+        try
+        {
+            var url = $"search/movie?api_key={_apiKey}&query={Uri.EscapeDataString(title)}&language=en-US&page=1";
+            if (year.HasValue) url += $"&primary_release_year={year.Value}";
+            var response = await httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return null;
+            var data = await response.Content.ReadFromJsonAsync<TmdbSearchResponse>();
+            return data?.Results.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB search-first failed for title={Title}", title);
+            return null;
+        }
+    }
+
     public async Task<List<int>> DiscoverClassicIdsAsync()
     {
         var ids = new HashSet<int>();
@@ -211,6 +246,23 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
         catch (Exception ex)
         {
             logger.LogError(ex, "TMDB videos fetch failed for tmdbId={TmdbId}", tmdbId);
+            return null;
+        }
+    }
+
+    public async Task<string?> GetBackdropUrlAsync(int tmdbId)
+    {
+        try
+        {
+            var response = await httpClient.GetAsync(
+                $"movie/{tmdbId}?api_key={_apiKey}&language=en-US");
+            if (!response.IsSuccessStatusCode) return null;
+            var details = await response.Content.ReadFromJsonAsync<TmdbMovieDetails>();
+            return TmdbConstants.BackdropUrl(details?.BackdropPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "TMDB backdrop fetch failed for tmdbId={TmdbId}", tmdbId);
             return null;
         }
     }

@@ -23,7 +23,7 @@ public class MovieService(MovieDbContext db) : IMovieService
         string? search = null, string? genre = null, string sortBy = "title",
         bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false,
         WatchStatus? watchStatus = null, int? yearFrom = null, int? yearTo = null, decimal? ratingMin = null,
-        int? collectionId = null, string? tag = null)
+        int? collectionId = null, string? tag = null, int? runtimeMin = null, int? runtimeMax = null)
     {
         var query = db.Movies.AsNoTracking();
 
@@ -68,14 +68,22 @@ public class MovieService(MovieDbContext db) : IMovieService
         if (!string.IsNullOrWhiteSpace(tag))
             query = query.Where(m => db.MovieTags.Any(t => t.MovieId == m.Id && t.Tag == tag));
 
+        if (runtimeMin.HasValue)
+            query = query.Where(m => m.RuntimeMinutes != null && m.RuntimeMinutes >= runtimeMin.Value);
+
+        if (runtimeMax.HasValue)
+            query = query.Where(m => m.RuntimeMinutes != null && m.RuntimeMinutes <= runtimeMax.Value);
+
         query = (sortBy.ToLower(), ascending) switch
         {
-            ("year",   true)  => query.OrderBy(m => m.ReleaseYear),
-            ("year",   false) => query.OrderByDescending(m => m.ReleaseYear),
-            ("rating", true)  => query.OrderBy(m => m.Rating),
-            ("rating", false) => query.OrderByDescending(m => m.Rating),
-            (_,        true)  => query.OrderBy(m => m.Title),
-            (_,        false) => query.OrderByDescending(m => m.Title),
+            ("year",    true)  => query.OrderBy(m => m.ReleaseYear),
+            ("year",    false) => query.OrderByDescending(m => m.ReleaseYear),
+            ("rating",  true)  => query.OrderBy(m => m.Rating),
+            ("rating",  false) => query.OrderByDescending(m => m.Rating),
+            ("runtime", true)  => query.OrderBy(m => m.RuntimeMinutes),
+            ("runtime", false) => query.OrderByDescending(m => m.RuntimeMinutes),
+            (_,         true)  => query.OrderBy(m => m.Title),
+            (_,         false) => query.OrderByDescending(m => m.Title),
         };
 
         var total  = await query.CountAsync();

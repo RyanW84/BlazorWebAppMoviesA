@@ -52,6 +52,9 @@ namespace BlazorWebAppMovies.Models.Tmdb
         [JsonPropertyName("runtime")]
         public int? Runtime { get; set; }
 
+        [JsonPropertyName("backdrop_path")]
+        public string? BackdropPath { get; set; }
+
         [JsonPropertyName("belongs_to_collection")]
         public TmdbCollection? BelongsToCollection { get; set; }
 
@@ -249,6 +252,12 @@ namespace BlazorWebAppMovies.Models.Tmdb
 
         [JsonPropertyName("poster_path")]
         public string? PosterPath { get; set; }
+    }
+
+    public class TmdbFindResponse
+    {
+        [JsonPropertyName("movie_results")]
+        public List<TmdbMovieResult> MovieResults { get; set; } = [];
     }
 
     public class TmdbCollectionDetails

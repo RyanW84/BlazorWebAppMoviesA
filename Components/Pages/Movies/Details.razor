@@ -22,6 +22,10 @@
 }
 else
 {
+    @if (!string.IsNullOrEmpty(backdropUrl))
+    {
+        <div class="details-hero" style="background-image:url('@backdropUrl')"></div>
+    }
     <div class="archive-terminal">
 
         <div class="archive-header">
@@ -282,6 +286,7 @@ else
     private List<WatchLogEntry> watchLog = [];
     private DateTime newLogDate = DateTime.Today;
     private string newLogNotes = "";
+    private string? backdropUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -298,6 +303,7 @@ else
         }
 
         var trailerTask    = TmdbMedia.GetTrailerKeyAsync(tmdbId);
+        var backdropTask   = TmdbMedia.GetBackdropUrlAsync(tmdbId);
         var providersTask  = TmdbMedia.GetWatchProvidersAsync(tmdbId);
         var recsTask       = TmdbMedia.GetRecommendationsAsync(tmdbId);
 
@@ -313,7 +319,7 @@ else
             ? TmdbMedia.GetCollectionAsync(colId)
             : null;
 
-        var tasks = new List<Task> { trailerTask, providersTask, recsTask, tagsTask, allTagsTask, logTask };
+        var tasks = new List<Task> { trailerTask, backdropTask, providersTask, recsTask, tagsTask, allTagsTask, logTask };
         if (creditsTask is not null) tasks.Add(creditsTask);
         if (collectionTask is not null) tasks.Add(collectionTask);
         await Task.WhenAll(tasks);
@@ -322,8 +328,9 @@ else
         allTags = allTagsTask.Result;
         watchLog = logTask.Result;
 
-        trailerKey     = trailerTask.Result;
-        watchProviders = providersTask.Result;
+        trailerKey      = trailerTask.Result;
+        backdropUrl     = backdropTask.Result;
+        watchProviders  = providersTask.Result;
         recommendations = recsTask.Result;
 
         if (creditsTask is not null)

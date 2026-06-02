@@ -1,0 +1,24 @@
+.bi-progress-panel {
+    background: #0a0000;
+    border: 1px solid #2a0000;
+    padding: 1.25rem;
+    font-size: 0.8rem;
+    font-family: monospace;
+}
+
+.bi-progress-header {
+    color: #cc2200;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+}
+
+.bi-progress-counter {
+    font-size: 1.1rem;
+    color: #cc2200;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.75rem;
+}
+
+.bi-log-row { padding: 0.15rem 0; letter-spacing: 0.04em; }
+.bi-log--ok  { color: #44aa66; }
+.bi-log--err { color: #cc4444; }

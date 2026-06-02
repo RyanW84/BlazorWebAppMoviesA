@@ -5,6 +5,7 @@ public static class TmdbConstants
     private const string ImageBase = "https://image.tmdb.org/t/p/";
 
     public static string? PosterUrl(string? path)       => path is null ? null : $"{ImageBase}w500{path}";
+    public static string? BackdropUrl(string? path)     => path is null ? null : $"{ImageBase}w1280{path}";
     public static string? ThumbUrl(string? path)        => path is null ? null : $"{ImageBase}w154{path}";
     public static string? PersonPhotoUrl(string? path)  => path is null ? null : $"{ImageBase}w185{path}";
     public static string? ProviderLogoUrl(string? path) => path is null ? null : $"{ImageBase}w45{path}";

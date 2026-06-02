@@ -4,7 +4,7 @@ namespace BlazorWebAppMovies.Services;
 
 public interface IMovieQueryService
 {
-    Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string? genre = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false, WatchStatus? watchStatus = null, int? yearFrom = null, int? yearTo = null, decimal? ratingMin = null, int? collectionId = null, string? tag = null);
+    Task<(List<Movie> Movies, int TotalCount)> GetPagedAsync(string? search = null, string? genre = null, string sortBy = "title", bool ascending = true, int page = 1, int pageSize = 25, bool favoritesOnly = false, WatchStatus? watchStatus = null, int? yearFrom = null, int? yearTo = null, decimal? ratingMin = null, int? collectionId = null, string? tag = null, int? runtimeMin = null, int? runtimeMax = null);
     Task<List<string>> GetGenresAsync();
     Task<int?> GetRandomIdAsync();
     Task<(int TotalMovies, int FavoriteMovies)> GetStatsAsync();

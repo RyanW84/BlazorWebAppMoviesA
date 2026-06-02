@@ -1,0 +1,336 @@
+@page "/movies/csv-import"
+@rendermode InteractiveServer
+@inject ITmdbSearchService   TmdbSearch
+@inject ITmdbImportService   TmdbImport
+@inject IMovieCommandService MovieCommands
+@inject IMovieQueryService   MovieQuery
+
+<PageTitle>CSV Import</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // CSV ACQUISITION</span>
+        <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+    </div>
+
+    <div class="archive-body">
+
+        @if (phase == Phase.Upload)
+        {
+            <p class="text-muted" style="font-size:0.8rem;">
+                // SUPPORTS LETTERBOXD (ratings.csv / diary.csv / watchlist.csv) AND IMDB (ratings.csv) EXPORTS
+            </p>
+            <div class="d-flex gap-2 align-items-center flex-wrap mt-3">
+                <InputFile OnChange="OnFileSelected" accept=".csv" class="form-control" style="max-width:400px;" />
+            </div>
+            @if (!string.IsNullOrEmpty(parseError))
+            {
+                <div class="text-danger mt-2" style="font-size:0.82rem;">// ERROR: @parseError</div>
+            }
+        }
+
+        @if (phase == Phase.Preview && rows.Count > 0)
+        {
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <span style="font-size:0.8rem;color:#888;">// @formatLabel DETECTED — @rows.Count RECORD(S)</span>
+                <button class="btn btn-sm btn-primary ms-auto" @onclick="StartImport">
+                    IMPORT ALL @rows.Count
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" @onclick="Reset">RESET</button>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="table table-sm" style="font-size:0.78rem;color:#aaa;">
+                    <thead>
+                        <tr>
+                            <th style="color:#cc2200;">TITLE</th>
+                            <th style="color:#cc2200;">YEAR</th>
+                            @if (rows.Any(r => r.PersonalRating.HasValue))
+                            {
+                                <th style="color:#cc2200;">RATING</th>
+                            }
+                            @if (rows.Any(r => r.WatchedDate.HasValue))
+                            {
+                                <th style="color:#cc2200;">WATCHED</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in rows.Take(50))
+                        {
+                            <tr>
+                                <td>@r.Title</td>
+                                <td>@r.Year</td>
+                                @if (rows.Any(x => x.PersonalRating.HasValue))
+                                {
+                                    <td>@(r.PersonalRating.HasValue ? new string('★', r.PersonalRating.Value) : "")</td>
+                                }
+                                @if (rows.Any(x => x.WatchedDate.HasValue))
+                                {
+                                    <td>@(r.WatchedDate?.ToString("yyyy-MM-dd") ?? "")</td>
+                                }
+                            </tr>
+                        }
+                        @if (rows.Count > 50)
+                        {
+                            <tr>
+                                <td colspan="4" class="text-muted">// … AND @(rows.Count - 50) MORE</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (phase == Phase.Importing || phase == Phase.Done)
+        {
+            <div class="bi-progress-panel">
+                <div class="bi-progress-header">
+                    // @(phase == Phase.Done ? "IMPORT COMPLETE" : "IMPORTING") — @log.Count / @rows.Count
+                </div>
+                @if (rows.Count > 0)
+                {
+                    <div class="bi-progress-counter">@log.Count / @rows.Count</div>
+                }
+                @foreach (var entry in log.TakeLast(60))
+                {
+                    <div class="bi-log-row @(entry.Ok ? "bi-log--ok" : "bi-log--err")">
+                        @(entry.Ok ? "✓" : "✗") @entry.Message
+                    </div>
+                }
+                @if (phase == Phase.Done)
+                {
+                    <div class="mt-3 d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="Reset">NEW IMPORT</button>
+                        <a href="/movies" class="btn btn-primary btn-sm">← BACK TO ARCHIVE</a>
+                    </div>
+                }
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    private enum Phase { Upload, Preview, Importing, Done }
+    private Phase phase = Phase.Upload;
+    private string formatLabel = "";
+    private string parseError = "";
+    private record CsvRow(string Title, int? Year, int? PersonalRating, DateTime? WatchedDate, string? ExternalId);
+    private record LogEntry(string Message, bool Ok);
+    private List<CsvRow> rows = [];
+    private List<LogEntry> log = [];
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        parseError = "";
+        rows.Clear();
+        phase = Phase.Upload;
+
+        var file = e.File;
+        if (file is null) return;
+        if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            parseError = "Only .csv files are supported.";
+            return;
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+            var parsed  = ParseCsv(content);
+            if (parsed.Count < 2) { parseError = "File appears empty."; return; }
+
+            var headers = parsed[0].Select(h => h.Trim()).ToArray();
+            var data    = parsed.Skip(1).Where(r => r.Length > 0 && r.Any(c => !string.IsNullOrWhiteSpace(c))).ToList();
+
+            if (TryParseImdb(headers, data, out var imdbRows))
+            {
+                rows = imdbRows;
+                formatLabel = "IMDB";
+            }
+            else if (TryParseLetterboxd(headers, data, out var lbRows))
+            {
+                rows = lbRows;
+                formatLabel = "LETTERBOXD";
+            }
+            else
+            {
+                parseError = "Unrecognised CSV format. Expected Letterboxd or IMDb ratings export.";
+                return;
+            }
+
+            phase = Phase.Preview;
+        }
+        catch (Exception ex)
+        {
+            parseError = $"Failed to read file: {ex.Message}";
+        }
+    }
+
+    private async Task StartImport()
+    {
+        if (rows.Count == 0) return;
+        phase = Phase.Importing;
+        log.Clear();
+
+        var existingMap = await MovieQuery.GetLocalIdsByTmdbIdsAsync([]);
+
+        foreach (var row in rows)
+        {
+            TmdbMovieResult? found = null;
+
+            if (!string.IsNullOrEmpty(row.ExternalId))
+                found = await TmdbSearch.FindByImdbIdAsync(row.ExternalId);
+
+            if (found is null)
+                found = await TmdbSearch.SearchFirstAsync(row.Title, row.Year);
+
+            if (found is null)
+            {
+                log.Add(new($"{row.Title} ({row.Year}) — not found on TMDB", false));
+                StateHasChanged();
+                await Task.Delay(TmdbConstants.ApiDelayMs);
+                continue;
+            }
+
+            var movie = await TmdbImport.ImportAsync(found.Id);
+            if (movie is null)
+            {
+                log.Add(new($"{row.Title} — TMDB import failed", false));
+                StateHasChanged();
+                await Task.Delay(TmdbConstants.ApiDelayMs);
+                continue;
+            }
+
+            await MovieCommands.AddIfNotExistsAsync(movie);
+
+            var localMap = await MovieQuery.GetLocalIdsByTmdbIdsAsync([found.Id]);
+            if (localMap.TryGetValue(found.Id, out var localId))
+            {
+                if (row.PersonalRating.HasValue)
+                    await MovieCommands.SetPersonalRatingAsync(localId, row.PersonalRating.Value);
+
+                if (row.WatchedDate.HasValue)
+                {
+                    await MovieCommands.SetWatchStatusAsync(localId, WatchStatus.Watched);
+                    await MovieCommands.SetWatchDateAsync(localId, row.WatchedDate.Value);
+                }
+            }
+
+            log.Add(new($"{movie.Title} ({movie.ReleaseYear})", true));
+            StateHasChanged();
+            await Task.Delay(TmdbConstants.ApiDelayMs);
+        }
+
+        phase = Phase.Done;
+        StateHasChanged();
+    }
+
+    private void Reset()
+    {
+        phase      = Phase.Upload;
+        rows.Clear();
+        log.Clear();
+        parseError = "";
+        formatLabel = "";
+    }
+
+    // ── Format parsers ────────────────────────────────────────────────────────
+
+    private static bool TryParseImdb(string[] headers, List<string[]> data, out List<CsvRow> result)
+    {
+        result = [];
+        int constIdx  = Array.IndexOf(headers, "Const");
+        int titleIdx  = IndexOf(headers, "Title");
+        int yearIdx   = IndexOf(headers, "Year");
+        int ratingIdx = IndexOf(headers, "Your Rating");
+        int dateIdx   = IndexOf(headers, "Date Rated");
+
+        if (constIdx < 0 || titleIdx < 0) return false;
+
+        foreach (var row in data)
+        {
+            var imdbId = SafeGet(row, constIdx);
+            var title  = SafeGet(row, titleIdx);
+            if (string.IsNullOrWhiteSpace(title)) continue;
+            var year         = int.TryParse(SafeGet(row, yearIdx), out var y) ? y : (int?)null;
+            var rating10     = int.TryParse(SafeGet(row, ratingIdx), out var r) ? r : (int?)null;
+            var personalRating = rating10.HasValue ? (int?)Math.Clamp((int)Math.Round(rating10.Value / 2.0), 1, 5) : null;
+            var date         = DateTime.TryParse(SafeGet(row, dateIdx), out var d) ? d : (DateTime?)null;
+            result.Add(new(title, year, personalRating, date, imdbId));
+        }
+        return result.Count > 0;
+    }
+
+    private static bool TryParseLetterboxd(string[] headers, List<string[]> data, out List<CsvRow> result)
+    {
+        result = [];
+        int nameIdx    = IndexOf(headers, "Name");
+        int yearIdx    = IndexOf(headers, "Year");
+        int ratingIdx  = IndexOf(headers, "Rating");
+        int watchedIdx = IndexOf(headers, "Watched Date");
+        if (watchedIdx < 0) watchedIdx = IndexOf(headers, "Date");
+
+        if (nameIdx < 0) return false;
+
+        foreach (var row in data)
+        {
+            var title = SafeGet(row, nameIdx);
+            if (string.IsNullOrWhiteSpace(title)) continue;
+            var year        = int.TryParse(SafeGet(row, yearIdx), out var y) ? y : (int?)null;
+            var lbRating    = double.TryParse(SafeGet(row, ratingIdx), System.Globalization.NumberStyles.Any,
+                                System.Globalization.CultureInfo.InvariantCulture, out var lr) ? lr : (double?)null;
+            var personalRating = lbRating.HasValue
+                ? (int?)Math.Clamp((int)Math.Round(lbRating.Value, MidpointRounding.AwayFromZero), 1, 5)
+                : null;
+            var date        = DateTime.TryParse(SafeGet(row, watchedIdx), out var d) ? d : (DateTime?)null;
+            result.Add(new(title, year, personalRating, date, null));
+        }
+        return result.Count > 0;
+    }
+
+    // ── CSV parsing ───────────────────────────────────────────────────────────
+
+    private static List<string[]> ParseCsv(string content)
+    {
+        var rows   = new List<string[]>();
+        var reader = new StringReader(content);
+        string? line;
+        while ((line = reader.ReadLine()) != null)
+        {
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            rows.Add(ParseCsvLine(line));
+        }
+        return rows;
+    }
+
+    private static string[] ParseCsvLine(string line)
+    {
+        var fields  = new List<string>();
+        var field   = new System.Text.StringBuilder();
+        bool inQ    = false;
+        for (int i  = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '"')
+            {
+                if (inQ && i + 1 < line.Length && line[i + 1] == '"') { field.Append('"'); i++; }
+                else inQ = !inQ;
+            }
+            else if (c == ',' && !inQ) { fields.Add(field.ToString()); field.Clear(); }
+            else field.Append(c);
+        }
+        fields.Add(field.ToString());
+        return [.. fields];
+    }
+
+    private static int IndexOf(string[] headers, string name) =>
+        Array.FindIndex(headers, h => h.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    private static string SafeGet(string[] row, int idx) =>
+        idx >= 0 && idx < row.Length ? row[idx].Trim() : "";
+}

@@ -68,7 +68,13 @@
         <option value="8">8+</option>
         <option value="9">9+</option>
     </select>
-    @if (yearFrom.HasValue || yearTo.HasValue || ratingMin.HasValue)
+    <span class="text-muted ms-2" style="font-size:0.8rem;white-space:nowrap;">Runtime (min):</span>
+    <input type="number" class="form-control form-control-sm" style="width:80px" placeholder="Min"
+           value="@runtimeMin" @onchange="OnRuntimeMinChange" min="0" />
+    <span class="text-muted" style="font-size:0.8rem;">–</span>
+    <input type="number" class="form-control form-control-sm" style="width:80px" placeholder="Max"
+           value="@runtimeMax" @onchange="OnRuntimeMaxChange" min="0" />
+    @if (yearFrom.HasValue || yearTo.HasValue || ratingMin.HasValue || runtimeMin.HasValue || runtimeMax.HasValue)
     {
         <button class="btn btn-sm btn-outline-secondary" @onclick="ClearRangeFilters">Clear</button>
     }
@@ -138,6 +144,9 @@ else
                     <th @onclick='() => SetSort("rating")' style="cursor:pointer" class="user-select-none">
                         Rating @SortIndicator("rating")
                     </th>
+                    <th @onclick='() => SetSort("runtime")' style="cursor:pointer" class="user-select-none">
+                        Runtime @SortIndicator("runtime")
+                    </th>
                     <th>Genre</th>
                     <th>Director</th>
                     <th></th>
@@ -171,6 +180,7 @@ else
                                 </span>
                             }
                         </td>
+                        <td>@(movie.RuntimeMinutes is int rt ? $"{rt / 60}h {rt % 60}m" : "")</td>
                         <td>@movie.Genre</td>
                         <td>@movie.Director</td>
                         <td class="text-end">
@@ -226,6 +236,8 @@ else
     [Parameter][SupplyParameterFromQuery(Name = "rmin")]       public decimal? RatingMinParam    { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "collection")] public int?     CollectionParam   { get; set; }
     [Parameter][SupplyParameterFromQuery(Name = "tag")]        public string?  TagParam          { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "rtmin")]      public int?     RuntimeMinParam   { get; set; }
+    [Parameter][SupplyParameterFromQuery(Name = "rtmax")]      public int?     RuntimeMaxParam   { get; set; }
 
     private bool gridView = false;
     private List<Movie> movies = [];
@@ -245,6 +257,8 @@ else
     private decimal? ratingMin;
     private int? collectionId;
     private string? selectedTag;
+    private int? runtimeMin;
+    private int? runtimeMax;
     private int totalPages => (int)Math.Ceiling((double)totalCount / pageSize);
 
     protected override async Task OnInitializedAsync()
@@ -262,6 +276,8 @@ else
         ratingMin           = RatingMinParam;
         collectionId        = CollectionParam;
         selectedTag         = TagParam;
+        runtimeMin          = RuntimeMinParam;
+        runtimeMax          = RuntimeMaxParam;
         genres = await MovieService.GetGenresAsync();
         await LoadMovies();
     }
@@ -269,7 +285,7 @@ else
     private async Task LoadMovies()
     {
         WatchStatus? watchStatusFilter = Enum.TryParse<WatchStatus>(selectedWatchStatus, out var parsed) ? parsed : null;
-        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter, yearFrom, yearTo, ratingMin, collectionId, selectedTag);
+        var result = await MovieService.GetPagedAsync(searchTerm, selectedGenre, sortBy, ascending, currentPage, pageSize, favoritesOnly, watchStatusFilter, yearFrom, yearTo, ratingMin, collectionId, selectedTag, runtimeMin, runtimeMax);
         movies = result.Movies;
         totalCount = result.TotalCount;
     }
@@ -291,6 +307,8 @@ else
             ["rmin"]       = ratingMin,
             ["collection"] = collectionId,
             ["tag"]        = selectedTag,
+            ["rtmin"]      = runtimeMin,
+            ["rtmax"]      = runtimeMax,
         });
         Nav.NavigateTo(url, replace: true);
     }
@@ -350,6 +368,20 @@ else
         yearFrom = null;
         yearTo = null;
         ratingMin = null;
+        runtimeMin = null;
+        runtimeMax = null;
+        await ResetAndReload();
+    }
+
+    private async Task OnRuntimeMinChange(ChangeEventArgs e)
+    {
+        runtimeMin = int.TryParse(e.Value?.ToString(), out var v) ? v : null;
+        await ResetAndReload();
+    }
+
+    private async Task OnRuntimeMaxChange(ChangeEventArgs e)
+    {
+        runtimeMax = int.TryParse(e.Value?.ToString(), out var v) ? v : null;
         await ResetAndReload();
     }
 
