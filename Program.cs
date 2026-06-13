@@ -120,3 +120,4 @@ app.Lifetime.ApplicationStarted.Register(() =>
     _ = Task.Run(() => MovieSeeder.SeedAsync(app.Services)));
 
 app.Run();
+//
