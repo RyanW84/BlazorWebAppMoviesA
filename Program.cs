@@ -49,7 +49,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode(); //
 
 app.MapGet("/export/movies.csv", async (MovieDbContext db) =>
 {
