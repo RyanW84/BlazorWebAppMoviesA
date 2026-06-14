@@ -9,6 +9,7 @@ namespace BlazorWebAppMovies.Data
         public DbSet<CastMember> CastMembers { get; set; }
         public DbSet<MovieTag> MovieTags { get; set; }
         public DbSet<WatchLogEntry> WatchLog { get; set; }
+        public DbSet<Screening> Screenings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -36,6 +37,12 @@ namespace BlazorWebAppMovies.Data
             {
                 e.HasIndex(w => w.MovieId);
                 e.HasIndex(w => w.WatchedOn);
+            });
+
+            modelBuilder.Entity<Screening>(e =>
+            {
+                e.HasIndex(s => s.ScheduledFor);
+                e.HasIndex(s => s.MovieId);
             });
         }
     }

@@ -329,6 +329,7 @@ public class MovieService(MovieDbContext db) : IMovieService
             .Where(m => m.CollectionId != null && m.CollectionName != null)
             .GroupBy(m => new { m.CollectionId, m.CollectionName })
             .Select(g => new { g.Key.CollectionId, g.Key.CollectionName, Count = g.Count() })
+            .Where(g => g.Count > 1)
             .OrderBy(g => g.CollectionName)
             .ToListAsync())
         .Select(g => (g.CollectionId!.Value, g.CollectionName!, g.Count))
