@@ -28,6 +28,9 @@ namespace BlazorWebAppMovies.Models.Movie
 
         public int? TmdbId { get; set; }
 
+        [StringLength(20)]
+        public string? ImdbId { get; set; }
+
         public int? DirectorTmdbId { get; set; }
 
         public bool IsFavorite { get; set; }

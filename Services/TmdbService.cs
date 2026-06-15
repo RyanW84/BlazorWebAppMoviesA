@@ -185,6 +185,7 @@ public class TmdbService(HttpClient httpClient, IConfiguration config, ILogger<T
                 Synopsis       = details.Overview,
                 PosterUrl      = TmdbConstants.PosterUrl(details.PosterPath),
                 TmdbId         = details.Id,
+                ImdbId         = details.ImdbId,
                 RuntimeMinutes = details.Runtime,
                 CollectionId   = details.BelongsToCollection?.Id,
                 CollectionName = details.BelongsToCollection?.Name,

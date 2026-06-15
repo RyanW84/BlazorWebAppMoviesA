@@ -1,0 +1,259 @@
+@page "/screenings"
+@rendermode InteractiveServer
+@inject IMovieQueryService MovieQuery
+@using BlazorWebAppMovies.Data
+@using BlazorWebAppMovies.Models.Movie
+@using Microsoft.EntityFrameworkCore
+@inject MovieDbContext Db
+
+<PageTitle>Screenings</PageTitle>
+
+<div class="archive-terminal">
+
+    <div class="archive-header">
+        <span>SKYNET ARCHIVE // SCREENING SCHEDULE</span>
+        <span class="header-status"><span class="status-dot">◉</span> ACTIVE</span>
+    </div>
+
+    <div class="archive-body">
+
+        <div class="screening-form terminal-panel">
+            <div class="panel-header">SCHEDULE SCREENING</div>
+            <div class="panel-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label field-label">MOVIE</label>
+                        <input class="form-control screening-input" placeholder="Search movie…"
+                               value="@movieSearch" @oninput="OnMovieSearchInput" list="movie-suggestions" />
+                        <datalist id="movie-suggestions">
+                            @foreach (var m in movieSuggestions)
+                            {
+                                <option value="@m.Title (@m.ReleaseYear)" data-id="@m.Id" />
+                            }
+                        </datalist>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label field-label">DATE &amp; TIME</label>
+                        <input type="datetime-local" class="form-control screening-input"
+                               @bind="newScheduledFor" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label field-label">LOCATION</label>
+                        <input class="form-control screening-input" placeholder="e.g. Living Room"
+                               @bind="newLocation" />
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" @onclick="AddScreening" disabled="@(selectedMovieId is null)">
+                            SCHEDULE
+                        </button>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label field-label">NOTES</label>
+                        <input class="form-control screening-input" placeholder="Optional notes…"
+                               @bind="newNotes" />
+                    </div>
+                </div>
+                @if (formError is not null)
+                {
+                    <div class="text-danger mt-2" style="font-size:0.8rem;">@formError</div>
+                }
+            </div>
+        </div>
+
+        @if (upcoming.Count > 0)
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">UPCOMING</div>
+                <div class="panel-body">
+                    <div class="screening-list">
+                        @foreach (var s in upcoming)
+                        {
+                            <div class="screening-card">
+                                <div class="screening-poster">
+                                    @if (!string.IsNullOrEmpty(s.Movie?.PosterUrl))
+                                    {
+                                        <img src="@s.Movie.PosterUrl" alt="@s.Title" />
+                                    }
+                                    else
+                                    {
+                                        <div class="screening-no-poster">?</div>
+                                    }
+                                </div>
+                                <div class="screening-info">
+                                    <a href="/movies/@s.MovieId" class="screening-title text-decoration-none">@s.Title</a>
+                                    <div class="screening-meta">
+                                        <span class="screening-time">@s.ScheduledFor.ToString("ddd dd MMM yyyy · HH:mm")</span>
+                                        @if (!string.IsNullOrEmpty(s.Location))
+                                        {
+                                            <span class="screening-location">· @s.Location</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(s.Notes))
+                                    {
+                                        <div class="screening-notes">@s.Notes</div>
+                                    }
+                                </div>
+                                <button class="btn btn-sm btn-link text-muted p-0 ms-auto align-self-start"
+                                        @onclick="() => DeleteScreening(s.Id)" title="Remove">✕</button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (past.Count > 0)
+        {
+            <div class="terminal-panel">
+                <div class="panel-header">PAST SCREENINGS</div>
+                <div class="panel-body">
+                    <div class="screening-list screening-list--past">
+                        @foreach (var s in past)
+                        {
+                            <div class="screening-card screening-card--past">
+                                <div class="screening-poster">
+                                    @if (!string.IsNullOrEmpty(s.Movie?.PosterUrl))
+                                    {
+                                        <img src="@s.Movie.PosterUrl" alt="@s.Title" />
+                                    }
+                                    else
+                                    {
+                                        <div class="screening-no-poster">?</div>
+                                    }
+                                </div>
+                                <div class="screening-info">
+                                    <a href="/movies/@s.MovieId" class="screening-title text-decoration-none">@s.Title</a>
+                                    <div class="screening-meta">
+                                        <span class="screening-time">@s.ScheduledFor.ToString("ddd dd MMM yyyy · HH:mm")</span>
+                                        @if (!string.IsNullOrEmpty(s.Location))
+                                        {
+                                            <span class="screening-location">· @s.Location</span>
+                                        }
+                                    </div>
+                                </div>
+                                <button class="btn btn-sm btn-link text-muted p-0 ms-auto align-self-start"
+                                        @onclick="() => DeleteScreening(s.Id)" title="Remove">✕</button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (upcoming.Count == 0 && past.Count == 0)
+        {
+            <p class="text-muted p-3">// NO SCREENINGS SCHEDULED</p>
+        }
+
+    </div>
+</div>
+
+@code {
+    private List<Screening> upcoming = [];
+    private List<Screening> past     = [];
+
+    private string movieSearch    = "";
+    private int?   selectedMovieId;
+    private string selectedMovieTitle = "";
+    private DateTime newScheduledFor  = DateTime.Now.AddDays(1).Date.AddHours(20);
+    private string? newLocation;
+    private string? newNotes;
+    private string? formError;
+
+    private List<Movie> movieSuggestions = [];
+
+    protected override async Task OnInitializedAsync() => await LoadScreenings();
+
+    private async Task LoadScreenings()
+    {
+        var now = DateTime.UtcNow;
+        var all = await Db.Screenings
+            .Include(s => s.Movie)
+            .AsNoTracking()
+            .OrderBy(s => s.ScheduledFor)
+            .ToListAsync();
+
+        upcoming = all.Where(s => s.ScheduledFor.ToUniversalTime() >= now).ToList();
+        past     = all.Where(s => s.ScheduledFor.ToUniversalTime() <  now).OrderByDescending(s => s.ScheduledFor).ToList();
+    }
+
+    private async Task OnMovieSearchInput(ChangeEventArgs e)
+    {
+        movieSearch     = e.Value?.ToString() ?? "";
+        selectedMovieId = null;
+
+        // Datalist options are formatted as "Title (Year)"; strip the suffix before searching
+        var searchTerm = movieSearch;
+        if (searchTerm.EndsWith(")"))
+        {
+            var parenIdx = searchTerm.LastIndexOf(" (");
+            if (parenIdx > 0) searchTerm = searchTerm[..parenIdx].Trim();
+        }
+
+        if (searchTerm.Length < 2) { movieSuggestions = []; return; }
+
+        movieSuggestions = await Db.Movies
+            .Where(m => m.Title.Contains(searchTerm))
+            .OrderBy(m => m.Title)
+            .Take(8)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var match = movieSuggestions.FirstOrDefault(m =>
+            movieSearch.StartsWith(m.Title, StringComparison.OrdinalIgnoreCase));
+        if (match is not null)
+        {
+            selectedMovieId    = match.Id;
+            selectedMovieTitle = match.Title;
+        }
+    }
+
+    private async Task AddScreening()
+    {
+        formError = null;
+
+        if (selectedMovieId is null)
+        {
+            var movieSearchTrimmed = movieSearch.Trim();
+            var movie = await Db.Movies
+                .Where(m => m.Title == movieSearchTrimmed || movieSearch.StartsWith(m.Title))
+                .OrderBy(m => m.Title)
+                .FirstOrDefaultAsync();
+
+            if (movie is null) { formError = "// SELECT A VALID MOVIE FROM THE ARCHIVE"; return; }
+            selectedMovieId    = movie.Id;
+            selectedMovieTitle = movie.Title;
+        }
+
+        var screening = new Screening
+        {
+            MovieId      = selectedMovieId.Value,
+            Title        = selectedMovieTitle,
+            ScheduledFor = newScheduledFor,
+            Location     = string.IsNullOrWhiteSpace(newLocation) ? null : newLocation.Trim(),
+            Notes        = string.IsNullOrWhiteSpace(newNotes)    ? null : newNotes.Trim(),
+            CreatedAt    = DateTime.UtcNow,
+        };
+
+        Db.Screenings.Add(screening);
+        await Db.SaveChangesAsync();
+
+        movieSearch       = "";
+        selectedMovieId   = null;
+        newLocation       = null;
+        newNotes          = null;
+        movieSuggestions  = [];
+        newScheduledFor   = DateTime.Now.AddDays(1).Date.AddHours(20);
+
+        await LoadScreenings();
+    }
+
+    private async Task DeleteScreening(int id)
+    {
+        var s = await Db.Screenings.FindAsync(id);
+        if (s is null) return;
+        Db.Screenings.Remove(s);
+        await Db.SaveChangesAsync();
+        await LoadScreenings();
+    }
+}

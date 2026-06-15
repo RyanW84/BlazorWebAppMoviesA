@@ -61,6 +61,9 @@ namespace BlazorWebAppMovies.Models.Tmdb
         [JsonPropertyName("genres")]
         public List<TmdbGenre> Genres { get; set; } = [];
 
+        [JsonPropertyName("imdb_id")]
+        public string? ImdbId { get; set; }
+
         [JsonPropertyName("credits")]
         public TmdbCredits Credits { get; set; } = new();
     }

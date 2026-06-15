@@ -49,7 +49,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapStaticAssets();
-app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode(); //
 
 app.MapGet("/export/movies.csv", async (MovieDbContext db) =>
 {
@@ -76,6 +76,45 @@ app.MapGet("/export/movies.csv", async (MovieDbContext db) =>
         "text/csv", "movies.csv");
 
     static string CsvEscape(string? v)
+    {
+        if (v is null) return "";
+        if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))
+            return $"\"{v.Replace("\"", "\"\"")}\"";
+        return v;
+    }
+});
+
+app.MapGet("/export/letterboxd.csv", async (MovieDbContext db) =>
+{
+    var movies = await db.Movies.AsNoTracking().OrderBy(m => m.Title).ToListAsync();
+    var tags   = await db.MovieTags.AsNoTracking().ToListAsync();
+    var tagMap = tags.GroupBy(t => t.MovieId).ToDictionary(g => g.Key, g => g.Select(t => t.Tag).ToList());
+    var log    = await db.WatchLog.AsNoTracking().OrderByDescending(w => w.WatchedOn).ToListAsync();
+    var logMap = log.GroupBy(w => w.MovieId).ToDictionary(g => g.Key, g => g.ToList());
+
+    var csv = new System.Text.StringBuilder();
+    csv.AppendLine("Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date,Notes");
+    foreach (var m in movies)
+    {
+        var watchedDate = logMap.TryGetValue(m.Id, out var entries) ? entries.First().WatchedOn : m.DateWatched;
+        var date        = watchedDate?.ToString("yyyy-MM-dd") ?? "";
+        var rating      = m.PersonalRating.HasValue ? m.PersonalRating.Value.ToString() : "";
+        var rewatch     = logMap.TryGetValue(m.Id, out var e2) && e2.Count > 1 ? "true" : "";
+        var tagList     = tagMap.TryGetValue(m.Id, out var t) ? string.Join("|", t) : "";
+        csv.AppendLine(string.Join(",",
+            date,
+            LbEscape(m.Title),
+            m.ReleaseYear,
+            "",
+            rating,
+            rewatch,
+            LbEscape(tagList),
+            date,
+            LbEscape(m.Notes)));
+    }
+    return Results.File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "letterboxd.csv");
+
+    static string LbEscape(string? v)
     {
         if (v is null) return "";
         if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))

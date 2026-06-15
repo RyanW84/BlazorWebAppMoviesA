@@ -101,6 +101,18 @@ else
                             <span class="field-dots"></span>
                             <span class="field-value">@movie.Rating.ToString("F1") <span class="rating-max">/ 10</span></span>
                         </div>
+                        @if (!string.IsNullOrEmpty(movie.ImdbId))
+                        {
+                            <div class="field-row">
+                                <span class="field-label">IMDB</span>
+                                <span class="field-dots"></span>
+                                <span class="field-value">
+                                    <a href="https://www.imdb.com/title/@movie.ImdbId" target="_blank" rel="noopener noreferrer" class="imdb-badge">
+                                        <span class="imdb-logo">IMDb</span> @movie.ImdbId
+                                    </a>
+                                </span>
+                            </div>
+                        }
                         <div class="field-row">
                             <span class="field-label">MY RATING</span>
                             <span class="field-dots"></span>
