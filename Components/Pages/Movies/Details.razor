@@ -197,9 +197,9 @@ else
                         <span class="field-label me-2">STATUS</span>
                         @foreach (var s in Enum.GetValues<WatchStatus>().Where(s => s != WatchStatus.None))
                         {
-                            <button class="btn btn-sm @(movie.WatchStatus == s ? WatchStatusActiveClass(s) : "btn-outline-secondary") me-1"
+                            <button class="btn btn-sm @(movie.WatchStatus == s ? s.ToActiveClass() : "btn-outline-secondary") me-1"
                                     @onclick="() => SetWatchStatus(s)">
-                                @WatchStatusLabel(s)
+                                @s.ToLabel()
                             </button>
                         }
                         @if (movie.WatchStatus != WatchStatus.None)
@@ -461,19 +461,4 @@ else
         watchLog.RemoveAll(w => w.Id == entryId);
     }
 
-    private static string WatchStatusLabel(WatchStatus s) => s switch
-    {
-        WatchStatus.WantToWatch => "WANT TO WATCH",
-        WatchStatus.Watched     => "WATCHED",
-        WatchStatus.Rewatching  => "REWATCHING",
-        _                       => s.ToString().ToUpper(),
-    };
-
-    private static string WatchStatusActiveClass(WatchStatus s) => s switch
-    {
-        WatchStatus.WantToWatch => "btn-info",
-        WatchStatus.Watched     => "btn-success",
-        WatchStatus.Rewatching  => "btn-warning",
-        _                       => "btn-secondary",
-    };
 }

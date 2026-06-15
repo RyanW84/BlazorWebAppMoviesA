@@ -44,7 +44,23 @@
 html, body {
     font-family: 'Share Tech Mono', 'Courier New', monospace;
     background-color: var(--t2-bg);
+    background-image: radial-gradient(ellipse at 30% 20%, rgba(80,0,0,0.12) 0%, transparent 60%);
     color: var(--t2-chrome);
+}
+
+/* CRT scanline overlay */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.06) 2px,
+        rgba(0, 0, 0, 0.06) 4px
+    );
+    pointer-events: none;
+    z-index: 9998;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -213,11 +229,79 @@ h1:focus {
     text-align: start;
 }
 
+/* ── T2 Animations ─────────────────────────────────────────────── */
+@keyframes t2-glitch {
+    0%, 88%, 100% {
+        text-shadow: 0 0 12px rgba(204, 34, 0, 0.6), 0 0 24px rgba(204, 34, 0, 0.2);
+        transform: none;
+        clip-path: none;
+    }
+    90% {
+        text-shadow: -3px 0 #ff3300, 3px 0 #550000, 0 0 12px rgba(204, 34, 0, 0.4);
+        transform: skewX(-1deg);
+        clip-path: inset(15% 0 70% 0);
+    }
+    92% {
+        text-shadow: 3px 0 #ff3300, -3px 0 #550000, 0 0 12px rgba(204, 34, 0, 0.4);
+        transform: skewX(1deg);
+        clip-path: inset(55% 0 20% 0);
+    }
+    94% {
+        text-shadow: 0 0 12px rgba(204, 34, 0, 0.6), 0 0 24px rgba(204, 34, 0, 0.2);
+        transform: none;
+        clip-path: none;
+    }
+}
+
+@keyframes t2-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.2; }
+}
+
+/* ── Terminal form labels ───────────────────────────────────────── */
+.terminal-form .form-label {
+    color: var(--t2-silver);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.terminal-form .form-label::before {
+    content: '> ';
+    color: var(--t2-red);
+}
+
 /* ── Archive terminal chrome (shared by Details + Person pages) ── */
 .archive-terminal {
+    position: relative;
     border: 1px solid #1e0000;
     background: #080808;
     overflow: hidden;
+}
+
+.archive-terminal::before,
+.archive-terminal::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: rgba(204, 34, 0, 0.45);
+    border-style: solid;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.archive-terminal::before {
+    top: 3px;
+    left: 3px;
+    border-width: 1px 0 0 1px;
+}
+
+.archive-terminal::after {
+    bottom: 3px;
+    right: 3px;
+    border-width: 0 1px 1px 0;
 }
 
 .archive-header {
@@ -266,6 +350,8 @@ h1:focus {
 }
 
 .panel-body { padding: 1rem 1.25rem; }
+
+.archive-body { padding: 1.25rem; }
 
 /* ── dl/dt/dd (details page) ───────────────────────────────── */
 dt {

@@ -1,0 +1,37 @@
+@keyframes purge-pulse {
+    0%, 100% { border-color: #440000; box-shadow: none; }
+    50%       { border-color: #cc2200; box-shadow: 0 0 24px rgba(204, 34, 0, 0.14); }
+}
+
+.purge-terminal {
+    border-color: #550000;
+    animation: purge-pulse 2s ease-in-out infinite;
+}
+
+.purge-header {
+    background: #1a0000;
+    border-bottom-color: #550000;
+}
+
+.purge-blink {
+    animation: t2-pulse 1s infinite;
+}
+
+.purge-warning-bar {
+    background: #150000;
+    border: 1px solid #440000;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.65rem;
+    color: #cc2200;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    animation: t2-pulse 2s infinite;
+}
+
+.purge-poster {
+    height: 180px;
+    border-radius: 2px;
+    border: 1px solid #440000;
+    filter: grayscale(40%) contrast(1.1);
+    flex-shrink: 0;
+}

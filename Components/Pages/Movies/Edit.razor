@@ -1,19 +1,25 @@
 @page "/movies/{Id:int}/edit"
 @rendermode InteractiveServer
-@inject IMovieService MovieService
-@inject NavigationManager Nav
+@inject IMovieQueryService   MovieQuery
+@inject IMovieCommandService MovieCommands
+@inject NavigationManager    Nav
 
 <PageTitle>Edit Movie</PageTitle>
 
-<h1>Edit Movie</h1>
+<div class="archive-terminal">
+<div class="archive-header">
+    <span>SKYNET ARCHIVE // MODIFY RECORD <span class="record-id">#@Id.ToString("D5")</span></span>
+    <span class="header-status"><span class="status-dot">◉</span> EDIT MODE</span>
+</div>
+<div class="archive-body">
 
 @if (movie is null)
 {
-    <p>Movie not found.</p>
+    <p class="text-muted">// RECORD NOT FOUND</p>
 }
 else
 {
-    <EditForm Model="movie" OnValidSubmit="Save">
+    <EditForm Model="movie" OnValidSubmit="Save" class="terminal-form">
         <DataAnnotationsValidator />
         <ValidationSummary class="text-danger" />
 
@@ -81,12 +87,15 @@ else
     </EditForm>
 }
 
+</div>
+</div>
+
 @code {
     [Parameter] public int Id { get; set; }
     private Movie? movie;
 
     protected override async Task OnInitializedAsync() =>
-        movie = await MovieService.GetByIdAsync(Id);
+        movie = await MovieQuery.GetByIdAsync(Id);
 
     private void OnDateWatchedChange(ChangeEventArgs e)
     {
@@ -99,7 +108,7 @@ else
     {
         if (movie is not null)
         {
-            await MovieService.UpdateAsync(movie);
+            await MovieCommands.UpdateAsync(movie);
             Nav.NavigateTo($"/movies/{Id}");
         }
     }

@@ -29,7 +29,33 @@
     text-transform: uppercase;
     color: #cc2200 !important;
     text-shadow: 0 0 12px rgba(204, 34, 0, 0.6), 0 0 24px rgba(204, 34, 0, 0.2);
+    animation: t2-glitch 10s infinite;
 }
+
+.nav-status {
+    border-top: 1px solid #2a0000;
+    padding: 0.75rem 1rem;
+    font-size: 0.6rem;
+    color: #3a3a3a;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.nav-status-row {
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.nav-status-online {
+    color: #22aa44;
+    animation: t2-pulse 2.5s infinite;
+    font-size: 0.55rem;
+}
+
+.nav-status-value { color: #555; }
 
 .bi {
     display: inline-block;

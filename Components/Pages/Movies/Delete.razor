@@ -3,30 +3,69 @@
 @inject IMovieService MovieService
 @inject NavigationManager Nav
 
-<PageTitle>Delete Movie</PageTitle>
+<PageTitle>Purge Record</PageTitle>
 
-<h1>Delete Movie</h1>
-
-@if (movie is null)
-{
-    <p>Movie not found.</p>
-}
-else
-{
-    <div class="alert alert-danger">
-        Are you sure you want to delete <strong>@movie.Title</strong> (@movie.ReleaseYear)?
+<div class="archive-terminal purge-terminal">
+    <div class="archive-header purge-header">
+        <span>SKYNET ARCHIVE // ⚠ PURGE PROTOCOL <span class="record-id">#@(movie?.Id.ToString("D5") ?? "?????") </span></span>
+        <span class="header-status"><span class="status-dot-err purge-blink">◉</span> CRITICAL</span>
     </div>
 
-    @if (!string.IsNullOrEmpty(movie.PosterUrl))
+    @if (movie is null)
     {
-        <img src="@movie.PosterUrl" style="height:180px;border-radius:4px;" class="mb-3" alt="@movie.Title poster" />
+        <div class="archive-body">
+            <p class="text-muted">// TARGET NOT FOUND IN DATABASE</p>
+        </div>
     }
+    else
+    {
+        <div class="archive-body">
+            <div class="purge-warning-bar">// WARNING // DESTRUCTIVE OPERATION — DATA CANNOT BE RECOVERED //</div>
 
-    <div class="d-flex gap-2">
-        <button class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
-        <a href="/movies/@movie.Id" class="btn btn-outline-secondary">Cancel</a>
-    </div>
-}
+            <div class="d-flex gap-4 mt-3 align-items-start">
+                @if (!string.IsNullOrEmpty(movie.PosterUrl))
+                {
+                    <img src="@movie.PosterUrl" class="purge-poster" alt="@movie.Title" />
+                }
+                <div class="flex-grow-1">
+                    <div class="field-grid">
+                        <div class="field-row">
+                            <span class="field-label">TARGET</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value">@movie.Title</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">YEAR</span>
+                            <span class="field-dots"></span>
+                            <span class="field-value">@movie.ReleaseYear</span>
+                        </div>
+                        @if (movie.Director is not null)
+                        {
+                            <div class="field-row">
+                                <span class="field-label">ARCHITECT</span>
+                                <span class="field-dots"></span>
+                                <span class="field-value">@movie.Director</span>
+                            </div>
+                        }
+                        @if (movie.Genre is not null)
+                        {
+                            <div class="field-row">
+                                <span class="field-label">CLASS</span>
+                                <span class="field-dots"></span>
+                                <span class="field-value">@movie.Genre</span>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-3 mt-4">
+                        <button class="btn btn-danger" @onclick="ConfirmDelete">CONFIRM PURGE</button>
+                        <a href="/movies/@movie.Id" class="btn btn-outline-secondary">ABORT</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
 
 @code {
     [Parameter] public int Id { get; set; }

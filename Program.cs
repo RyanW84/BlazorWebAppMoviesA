@@ -51,6 +51,14 @@ using (var scope = app.Services.CreateScope())
 app.MapStaticAssets();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode(); //
 
+static string CsvEscape(string? v)
+{
+    if (v is null) return "";
+    if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))
+        return $"\"{v.Replace("\"", "\"\"")}\"";
+    return v;
+}
+
 app.MapGet("/export/movies.csv", async (MovieDbContext db) =>
 {
     var movies = await db.Movies.AsNoTracking().OrderBy(m => m.Title).ToListAsync();
@@ -74,14 +82,6 @@ app.MapGet("/export/movies.csv", async (MovieDbContext db) =>
     }
     return Results.File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()),
         "text/csv", "movies.csv");
-
-    static string CsvEscape(string? v)
-    {
-        if (v is null) return "";
-        if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))
-            return $"\"{v.Replace("\"", "\"\"")}\"";
-        return v;
-    }
 });
 
 app.MapGet("/export/letterboxd.csv", async (MovieDbContext db) =>
@@ -103,24 +103,16 @@ app.MapGet("/export/letterboxd.csv", async (MovieDbContext db) =>
         var tagList     = tagMap.TryGetValue(m.Id, out var t) ? string.Join("|", t) : "";
         csv.AppendLine(string.Join(",",
             date,
-            LbEscape(m.Title),
+            CsvEscape(m.Title),
             m.ReleaseYear,
             "",
             rating,
             rewatch,
-            LbEscape(tagList),
+            CsvEscape(tagList),
             date,
-            LbEscape(m.Notes)));
+            CsvEscape(m.Notes)));
     }
     return Results.File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "letterboxd.csv");
-
-    static string LbEscape(string? v)
-    {
-        if (v is null) return "";
-        if (v.Contains(',') || v.Contains('"') || v.Contains('\n'))
-            return $"\"{v.Replace("\"", "\"\"")}\"";
-        return v;
-    }
 });
 
 app.MapGet("/export/movies.json", async (MovieDbContext db) =>

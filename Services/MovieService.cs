@@ -93,7 +93,7 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     public async Task<List<string>> GetGenresAsync() =>
         await db.Movies
-            .Where(m => m.Genre != null && m.Genre != "")
+            .Where(m => !string.IsNullOrEmpty(m.Genre))
             .Select(m => m.Genre!)
             .Distinct()
             .OrderBy(g => g)
@@ -206,7 +206,7 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     public async Task<List<(string Genre, int Count)>> GetStatsByGenreAsync() =>
         (await db.Movies
-            .Where(m => m.Genre != null && m.Genre != "")
+            .Where(m => !string.IsNullOrEmpty(m.Genre))
             .GroupBy(m => m.Genre!)
             .Select(g => new { Genre = g.Key, Count = g.Count() })
             .OrderByDescending(g => g.Count)
@@ -243,7 +243,7 @@ public class MovieService(MovieDbContext db) : IMovieService
 
     public async Task<List<(string Director, int Count)>> GetTopDirectorsAsync(int n = 10) =>
         (await db.Movies
-            .Where(m => m.Director != null && m.Director != "")
+            .Where(m => !string.IsNullOrEmpty(m.Director))
             .GroupBy(m => m.Director!)
             .Select(g => new { Director = g.Key, Count = g.Count() })
             .OrderByDescending(g => g.Count)

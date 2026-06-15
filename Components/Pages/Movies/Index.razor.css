@@ -1,3 +1,8 @@
+/* Tighten the archive-body padding for the index page (overrides global 1.25rem) */
+::deep .archive-body {
+    padding: 1rem 1.25rem;
+}
+
 .movie-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));

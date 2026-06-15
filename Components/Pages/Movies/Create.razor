@@ -7,11 +7,16 @@
 
 <PageTitle>Add Movie</PageTitle>
 
-<h1>Add Movie</h1>
+<div class="archive-terminal">
+<div class="archive-header">
+    <span>SKYNET ARCHIVE // INITIATE NEW RECORD</span>
+    <span class="header-status"><span class="status-dot">◉</span> AUTHORIZED</span>
+</div>
+<div class="archive-body">
 
-<div class="card mb-4">
-    <div class="card-header">Search TMDB to auto-fill</div>
-    <div class="card-body">
+<div class="terminal-panel mb-4">
+    <div class="panel-header">// SEARCH TMDB DATABASE</div>
+    <div class="panel-body">
         <div class="d-flex gap-2">
             <input class="form-control" @bind="tmdbQuery" @bind:event="oninput" @onkeydown="OnTmdbKeyDown" placeholder="Search for a movie..." />
             <button class="btn btn-secondary" @onclick="SearchTmdb" disabled="@searching">Search</button>
@@ -46,7 +51,7 @@
     <div class="alert alert-danger">@importError</div>
 }
 
-<EditForm @key="_formKey" Model="movie" OnValidSubmit="Save">
+<EditForm @key="_formKey" Model="movie" OnValidSubmit="Save" class="terminal-form">
     <DataAnnotationsValidator />
     <ValidationSummary class="text-danger" />
 
@@ -96,6 +101,9 @@
     </div>
 </EditForm>
 
+</div>
+</div>
+
 @code {
     private Movie movie = new();
     private int _formKey;
@@ -125,15 +133,7 @@
         var imported = await TmdbImport.ImportAsync(tmdbId);
         if (imported is not null)
         {
-            movie.Title = imported.Title;
-            movie.ReleaseYear = imported.ReleaseYear;
-            movie.Genre = imported.Genre;
-            movie.Director = imported.Director;
-            movie.Rating = imported.Rating;
-            movie.Synopsis = imported.Synopsis;
-            movie.PosterUrl = imported.PosterUrl;
-            movie.TmdbId = imported.TmdbId;
-            movie.Cast = imported.Cast;
+            movie.ApplyImportedData(imported);
             _formKey++;
         }
         else

@@ -56,5 +56,18 @@ namespace BlazorWebAppMovies.Models.Movie
         public int? WatchlistPriority { get; set; }
 
         public List<CastMember> Cast { get; set; } = [];
+
+        public void ApplyImportedData(Movie source)
+        {
+            Title       = source.Title;
+            ReleaseYear = source.ReleaseYear;
+            Genre       = source.Genre;
+            Director    = source.Director;
+            Rating      = source.Rating;
+            Synopsis    = source.Synopsis;
+            PosterUrl   = source.PosterUrl;
+            TmdbId      = source.TmdbId;
+            Cast        = source.Cast;
+        }
     }
 }
